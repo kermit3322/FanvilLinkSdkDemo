@@ -1,0 +1,388 @@
+package com.fanvil.link.sdk.rtc
+
+import android.content.Context
+import android.media.AudioManager
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.View
+import android.view.ViewGroup
+import android.view.ViewTreeObserver
+import android.widget.FrameLayout
+import com.elvishew.xlog.LogLevel
+import com.elvishew.xlog.XLog
+import com.elvishew.xlog.printer.AndroidPrinter
+import com.smart.rinoiot.device_sdk.bean.device.AgoraRtcTokenVO
+import com.smart.rinoiot.device_sdk.bean.device.AgoraRtmTokenVO
+import com.smart.rinoiot.device_sdk.bean.device.AgoraUserTokenVO
+import com.smart.rinoiot.panel_sdk.ipc.agora.RinoEventListener
+import com.smart.rinoiot.panel_sdk.ipc.agora.RinoIPCEventEmitter
+import com.smart.rinoiot.panel_sdk.rinoIPCSDK.RinoIPCSDK
+import com.smart.rinoiot.panel_sdk.rinoIPCSDK.RinoRemotePlayer
+import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+
+/**
+ * 瀵归綈 AndroidDoorAccess library_rino / RinoManager 鐨勬牳蹇冭兘鍔涳紙鍘绘帀 EventBus / 涓氬姟渚濊禆锛夈€?
+ */
+class RinoRtcEngine(
+  private val context: Context,
+  private val emit: (event: String, payload: Map<String, Any?>) -> Unit,
+) : RinoEventListener {
+  companion object {
+    private const val TAG = "FanvilRtc"
+    const val FANVIL_DEVICE_REMOTE_ID = 100000004
+    var dynamicAudioCodec: Int = 8
+    private val xlogInitialized = AtomicBoolean(false)
+  }
+
+  private var eventEmitter: RinoIPCEventEmitter? = RinoIPCEventEmitter().also {
+    it.addListener(this)
+  }
+
+  private var agoraUserTokenVO: AgoraUserTokenVO? = null
+  private var remoteChannelName: String = ""
+  private var remoteUid: Int = FANVIL_DEVICE_REMOTE_ID
+  private var agoraAppId: String = ""
+  private var hasJoinChannelJob = false
+  private var isMicEnabled = false
+  private var isMuteAudio = false
+  private var rinoRemotePlayer: RinoRemotePlayer? = null
+  private var playerContainer: ViewGroup? = null
+  private var lastSnapshotPath: String? = null
+  private val mainHandler = Handler(Looper.getMainLooper())
+
+  fun initIpc(appId: String) {
+    agoraAppId = appId
+    if (!RinoIPCSDK.hasInit) {
+      ensureXLogInitialized()
+      RinoIPCSDK.init(appId, eventEmitter, context)
+      Log.i(TAG, "RinoIPCSDK init done")
+    }
+  }
+
+  private fun ensureXLogInitialized() {
+    if (!xlogInitialized.compareAndSet(false, true)) return
+    try {
+      XLog.init(LogLevel.ALL, AndroidPrinter())
+      Log.i(TAG, "XLog initialized")
+    } catch (e: Exception) {
+      // 宿主已初始化时忽略
+      Log.d(TAG, "XLog init skipped: ${e.message}")
+    }
+  }
+
+  fun setToken(
+    agoraAppId: String,
+    userId: String,
+    channelName: String,
+    uid: Int,
+    rtcToken: String,
+    expireSecond: Int = 3600,
+    rtmAccount: String? = null,
+    rtmToken: String? = null,
+    rtmExpire: Int = 3600,
+  ) {
+    this.agoraAppId = agoraAppId
+    val token = AgoraUserTokenVO().apply {
+      this.agoraAppId = agoraAppId
+      this.userId = userId
+      this.rtcToken = AgoraRtcTokenVO().apply {
+        this.channelName = channelName
+        // SDK 涓?uid 涓?String锛堝榻?RinoManager: rtcToken.uid.toInt()锛?
+        this.uid = uid.toString()
+        this.rtcToken = rtcToken
+        this.expireSecond = expireSecond
+      }
+      if (!rtmToken.isNullOrEmpty()) {
+        this.rtmToken = AgoraRtmTokenVO().apply {
+          this.account = rtmAccount ?: userId
+          this.rtmToken = rtmToken
+          this.expireSecond = rtmExpire
+        }
+      }
+    }
+    agoraUserTokenVO = token
+    if (rinoRemotePlayer != null) {
+      runOnMain {
+        try {
+          RinoIPCSDK.updateToken(channelName, userId.toInt(), rtcToken)
+          rinoRemotePlayer?.setToken(token)
+          Log.i(TAG, "RTC token updated channel=$channelName uid=$userId")
+        } catch (e: Exception) {
+          Log.e(TAG, "updateToken", e)
+        }
+      }
+    }
+  }
+
+  fun setRemoteUid(uid: Int) {
+    remoteUid = if (uid > 0) uid else FANVIL_DEVICE_REMOTE_ID
+  }
+
+  fun setRemoteChannelName(channelName: String) {
+    remoteChannelName = channelName
+  }
+
+  private fun runOnMain(block: () -> Unit) {
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      block()
+    } else {
+      mainHandler.post(block)
+    }
+  }
+
+  private fun runOnMainBlocking(block: () -> Unit) {
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+      block()
+      return
+    }
+    val latch = CountDownLatch(1)
+    var error: Throwable? = null
+    mainHandler.post {
+      try {
+        block()
+      } catch (t: Throwable) {
+        error = t
+      } finally {
+        latch.countDown()
+      }
+    }
+    latch.await(5, TimeUnit.SECONDS)
+    error?.let { throw it }
+  }
+
+  fun attachPlayerContainer(container: ViewGroup) {
+    if (playerContainer != container) {
+      hasJoinChannelJob = false
+    }
+    playerContainer = container
+  }
+
+  fun joinChannel(localUid: Int, isSpeakerOn: Boolean = true) {
+    if (hasJoinChannelJob) {
+      Log.i(TAG, "joinChannel skipped: already joined")
+      return
+    }
+    val token = agoraUserTokenVO ?: throw IllegalStateException("RTC token not set")
+    initIpc(token.agoraAppId ?: agoraAppId)
+    val container = playerContainer ?: throw IllegalStateException("RTC view not ready")
+    hasJoinChannelJob = true
+    runOnMain {
+      Log.i(
+        TAG,
+        "joinChannel(main) channel=${token.rtcToken?.channelName} localUid=$localUid remoteUid=$remoteUid speaker=$isSpeakerOn size=${container.width}x${container.height} attached=${container.isAttachedToWindow}",
+      )
+      waitUntilReady(container) {
+        initRinoPlayer(container, remoteUid)
+        setEnableSpeakerphone(isSpeakerOn)
+      }
+    }
+  }
+
+  private fun waitUntilReady(view: View, action: () -> Unit) {
+    var started = false
+    fun startIfReady(): Boolean {
+      if (started) return true
+      if (!view.isAttachedToWindow || view.width <= 0 || view.height <= 0) return false
+      started = true
+      Log.i(TAG, "view ready size=${view.width}x${view.height}")
+      action()
+      return true
+    }
+
+    if (startIfReady()) return
+
+    val attachListener = object : View.OnAttachStateChangeListener {
+      override fun onViewAttachedToWindow(v: View) {
+        view.removeOnAttachStateChangeListener(this)
+        view.requestLayout()
+        startIfReady()
+      }
+
+      override fun onViewDetachedFromWindow(v: View) = Unit
+    }
+    view.addOnAttachStateChangeListener(attachListener)
+
+    val layoutListener = object : ViewTreeObserver.OnGlobalLayoutListener {
+      override fun onGlobalLayout() {
+        if (!startIfReady()) return
+        if (view.viewTreeObserver.isAlive) {
+          view.viewTreeObserver.removeOnGlobalLayoutListener(this)
+        }
+      }
+    }
+    view.viewTreeObserver.addOnGlobalLayoutListener(layoutListener)
+    view.requestLayout()
+  }
+
+  private fun initRinoPlayer(container: ViewGroup, remoteUid: Int) {
+    val token = agoraUserTokenVO ?: return
+    Log.i(TAG, "initRinoPlayer remoteUid=$remoteUid size=${container.width}x${container.height}")
+    val playerContext = container.context ?: context
+    rinoRemotePlayer = RinoRemotePlayer(playerContext, remoteUid, false).also { player ->
+      player.token = token
+      player.setMuteAudio(isMuteAudio)
+      player.setAutoLeaveChannelOnDestroy(false)
+    }
+    container.removeAllViews()
+    container.addView(
+      rinoRemotePlayer,
+      FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams.MATCH_PARENT,
+        FrameLayout.LayoutParams.MATCH_PARENT,
+      ),
+    )
+    RtcViewLayout.layoutChildren(container)
+    container.requestLayout()
+  }
+
+  fun leaveChannel() {
+    runOnMainBlocking {
+      releasePlayer()
+      val channelName = agoraUserTokenVO?.rtcToken?.channelName
+      val userId = agoraUserTokenVO?.userId
+      if (!channelName.isNullOrEmpty() && !userId.isNullOrEmpty()) {
+        try {
+          RinoIPCSDK.leaveChannel(channelName, userId.toInt())
+        } catch (e: Exception) {
+          Log.e(TAG, "leaveChannel error", e)
+        }
+      }
+      agoraUserTokenVO = null
+      remoteChannelName = ""
+      remoteUid = FANVIL_DEVICE_REMOTE_ID
+    }
+  }
+
+  private fun releasePlayer() {
+    hasJoinChannelJob = false
+    playerContainer?.removeAllViews()
+    rinoRemotePlayer?.removeAllViews()
+    rinoRemotePlayer = null
+  }
+
+  fun setMuteAudio(mute: Boolean) {
+    isMuteAudio = mute
+    runOnMain { rinoRemotePlayer?.setMuteAudio(mute) }
+  }
+
+  fun setMicEnabled(enable: Boolean) {
+    isMicEnabled = enable
+  }
+
+  fun setEnableSpeakerphone(isOpen: Boolean): Int {
+    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+    audioManager.isSpeakerphoneOn = isOpen
+    return try {
+      RinoIPCSDK.setEnableSpeakerphone(isOpen)
+    } catch (e: Exception) {
+      Log.e(TAG, "setEnableSpeakerphone", e)
+      -1
+    }
+  }
+
+  fun startPushAudio(localUid: Int = agoraUserTokenVO?.userId?.toIntOrNull() ?: 0): Int {
+    val channelId = agoraUserTokenVO?.rtcToken?.channelName ?: return -2
+    return try {
+      RinoIPCSDK.startPushAudioToChannel(channelId, localUid, dynamicAudioCodec)
+    } catch (e: Exception) {
+      Log.e(TAG, "startPushAudio", e)
+      -2
+    }
+  }
+
+  fun stopPushAudio(localUid: Int = agoraUserTokenVO?.userId?.toIntOrNull() ?: 0): Int {
+    val channelId = agoraUserTokenVO?.rtcToken?.channelName ?: return -2
+    return try {
+      RinoIPCSDK.stopPushAudioToChannel(channelId, localUid)
+    } catch (e: Exception) {
+      Log.e(TAG, "stopPushAudio", e)
+      -2
+    }
+  }
+
+  fun takeSnapshot(filePath: String? = null, saveToGallery: Boolean = false): Int {
+    val channelId = agoraUserTokenVO?.rtcToken?.channelName ?: return -1
+    val localUid = agoraUserTokenVO?.userId?.toIntOrNull() ?: 0
+    val path = filePath ?: File(
+      context.cacheDir,
+      "snapshot_${System.currentTimeMillis()}.png",
+    ).absolutePath
+    lastSnapshotPath = path
+    return try {
+      RinoIPCSDK.takeSnapshot(channelId, localUid, remoteUid, path, saveToGallery)
+    } catch (e: Exception) {
+      Log.e(TAG, "takeSnapshot", e)
+      -2
+    }
+  }
+
+  fun clearCache() {
+    remoteChannelName = ""
+    agoraUserTokenVO = null
+    hasJoinChannelJob = false
+  }
+
+  fun destroy() {
+    leaveChannel()
+    runOnMainBlocking {
+      eventEmitter?.removeListener(this)
+      eventEmitter = null
+    }
+  }
+
+  override fun onEvent(event: RinoIPCEventEmitter.RinoIPCEvent, ctx: Context) {
+    Log.i(TAG, "[event] ${event.eventType} data=${event.data}")
+    when (event.eventType) {
+      RinoIPCEventEmitter.RinoIPCEventTypeEnum.onConnectionStateChanged -> {
+        val state = (event.data?.get("state") as? Number)?.toInt() ?: 0
+        val reason = (event.data?.get("reason") as? Number)?.toInt()
+        emit("onConnectionChanged", mapOf("state" to state, "reason" to reason))
+      }
+      RinoIPCEventEmitter.RinoIPCEventTypeEnum.onJoinChannelSuccess,
+      RinoIPCEventEmitter.RinoIPCEventTypeEnum.onRejoinChannelSuccess,
+      -> {
+        agoraUserTokenVO?.userId?.toIntOrNull()?.let { uid ->
+          if (isMicEnabled) startPushAudio(uid) else stopPushAudio(uid)
+        }
+        emit(
+          "onJoinChannel",
+          mapOf(
+            "channel" to agoraUserTokenVO?.rtcToken?.channelName,
+            "uid" to agoraUserTokenVO?.userId?.toIntOrNull(),
+          ),
+        )
+      }
+      RinoIPCEventEmitter.RinoIPCEventTypeEnum.onFirstRemoteVideoFrame -> {
+        emit("onFirstVideoFrame", emptyMap())
+      }
+      RinoIPCEventEmitter.RinoIPCEventTypeEnum.onRemoteVideoStateChanged -> {
+        val state = (event.data?.get("state") as? Number)?.toInt()
+        val reason = (event.data?.get("reason") as? Number)?.toInt()
+        emit("onVideoStateChanged", mapOf("state" to state, "reason" to reason))
+      }
+      RinoIPCEventEmitter.RinoIPCEventTypeEnum.onLeaveChannel -> {
+        hasJoinChannelJob = false
+        emit("onLeaveChannel", emptyMap())
+      }
+      RinoIPCEventEmitter.RinoIPCEventTypeEnum.onUserOffline -> {
+        emit("onUserOffline", emptyMap())
+      }
+      RinoIPCEventEmitter.RinoIPCEventTypeEnum.onSnapshotTaken -> {
+        val errCode = (event.data?.get("errCode") as? Number)?.toInt() ?: -1
+        emit("onSnapshotTaken", mapOf("result" to errCode, "path" to lastSnapshotPath))
+      }
+      RinoIPCEventEmitter.RinoIPCEventTypeEnum.onTokenPrivilegeWillExpire -> {
+        emit(
+          "onTokenWillExpire",
+          mapOf("channelName" to agoraUserTokenVO?.rtcToken?.channelName),
+        )
+      }
+      else -> Unit
+    }
+  }
+}

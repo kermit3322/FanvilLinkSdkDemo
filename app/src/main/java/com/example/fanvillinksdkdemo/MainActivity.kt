@@ -11,13 +11,14 @@ import android.widget.ToggleButton
 import androidx.core.app.ActivityCompat
 import com.fanvil.link.sdk.FanvilLinkSdk
 import com.fanvil.link.sdk.FanvilSdkConfig
+import com.fanvil.link.sdk.call.CallState
 import com.fanvil.link.sdk.listener.FanvilSdkListener
 import com.fanvil.link.sdk.rtc.FanvilRtcVideoView
+import com.fanvil.link.sdk.sip.SipRegistrationState
 
 class MainActivity : Activity() {
     private lateinit var statusText: TextView
     private lateinit var rtcView: FanvilRtcVideoView
-    private var mediaJoined = false
 
     private val sdkListener = object : FanvilSdkListener {
         override fun onMqttConnectionChanged(
@@ -29,7 +30,7 @@ class MainActivity : Activity() {
             showStatus("MQTT: $status ${message.orEmpty()}")
         }
 
-        override fun onSipRegistration(state: String, message: String) {
+        override fun onSipRegistration(state: SipRegistrationState, message: String) {
             showStatus("SIP: $state $message")
         }
 
@@ -42,20 +43,16 @@ class MainActivity : Activity() {
         }
 
         override fun onCallStateChanged(
-            state: String,
+            state: CallState,
             remoteUsername: String?,
             remoteDisplayName: String?,
             remoteAddress: String?
         ) {
             showStatus("通话状态: $state")
-            if (state == "Connected" && !mediaJoined) {
-                mediaJoined = true
+            if (state == CallState.Connected) {
                 runSdkAction {
                     FanvilLinkSdk.joinCallMedia(rtcView, speakerOn = true, micEnabled = true)
                 }
-            }
-            if (state == "End" || state == "Released" || state == "Error") {
-                mediaJoined = false
             }
         }
     }
@@ -102,7 +99,6 @@ class MainActivity : Activity() {
                 showStatus("请输入被叫 SIP 用户名")
                 return@setOnClickListener
             }
-            mediaJoined = false
             runSdkAction {
                 FanvilLinkSdk.startCall(target, type = "video")
                 showStatus("正在呼叫 $target")
@@ -110,14 +106,12 @@ class MainActivity : Activity() {
         }
 
         findViewById<Button>(R.id.acceptButton).setOnClickListener {
-            mediaJoined = false
             runSdkAction { FanvilLinkSdk.acceptCall() }
         }
 
         findViewById<Button>(R.id.endButton).setOnClickListener {
             runSdkAction {
                 FanvilLinkSdk.endCall()
-                mediaJoined = false
                 showStatus("通话已结束")
             }
         }

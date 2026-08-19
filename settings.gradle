@@ -40,3 +40,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "FanvilLinkSdkDemo"
 include ':app'
+include ':fanvil-link-sdk'
