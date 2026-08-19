@@ -1,0 +1,83 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+android {
+    namespace 'com.example.fanvillinksdkdemo'
+    compileSdk {
+        version = release(36) {
+            minorApiLevel = 1
+        }
+    }
+
+    defaultConfig {
+        applicationId "com.example.fanvillinksdkdemo"
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    packaging {
+        resources {
+            pickFirsts += ['bundle.properties']
+        }
+        jniLibs {
+            pickFirsts += [
+                'lib/*/libc++_shared.so',
+                'lib/*/libimagepipeline.so',
+                'lib/*/libnative-filters.so',
+                'lib/*/libnative-imagetranscoder.so',
+                'lib/*/libavcodec.so'
+            ]
+        }
+    }
+}
+
+dependencies {
+    implementation libs.androidx.core.ktx
+    implementation files('libs/fanvil-link-sdk-0.1.0.aar')
+    implementation files('libs/linphone-sdk-android-0.0.12-release.aar')
+    implementation('com.smart.rinoiot:rinoPanel:1.2.1') {
+        exclude module: 'common-log'
+        exclude module: 'common-res'
+        exclude module: 'rinoReactNative'
+        exclude module: 'rinoReactNativeV8'
+        exclude module: 'rinoReactFastImage'
+        exclude module: 'rinoReactReanimated'
+        exclude module: 'rinoReactGesture'
+        exclude module: 'rinoReactScreens'
+        exclude module: 'rinoReactSafeArea'
+        exclude module: 'rinoReactSvg'
+        exclude module: 'rinoReactAsyncStorage'
+        exclude module: 'rinoReactCommunityBlur'
+        exclude module: 'rinoReactCommunityMaskedView'
+        exclude module: 'rinoReactCropPicker'
+        exclude module: 'rinoReactPagerView'
+        exclude module: 'rinoReactPicker'
+        exclude module: 'rinoReactVideo'
+        exclude module: 'rinoReactWebview'
+        exclude module: 'rinoReactLottiee'
+        exclude module: 'rinoReactFfmpeg'
+        exclude group: 'com.linecorp.linesdk', module: 'linesdk'
+        exclude group: 'com.github.adityaxjha', module: 'Android-ScalableVideoView'
+        exclude group: 'com.github.yalantis', module: 'ucrop'
+        exclude group: 'com.github.Dimezis', module: 'BlurView'
+        exclude group: 'com.android.support'
+    }
+    testImplementation libs.junit
+    androidTestImplementation libs.androidx.junit
+    androidTestImplementation libs.androidx.espresso.core
+}

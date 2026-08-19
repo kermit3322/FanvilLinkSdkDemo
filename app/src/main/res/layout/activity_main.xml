@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="未初始化"
+            android:textSize="18sp" />
+
+        <EditText
+            android:id="@+id/userIdInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="1967770215329169410"
+            android:hint="User ID"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/agoraIdInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="200000763"
+            android:hint="Agora ID"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/agoraAppIdInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="c585a46adf8e42c79019db1c177716da"
+            android:hint="Agora App ID"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/accessTokenInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Access Token"
+            android:text="bf23c596f7694e48bfa15bffcd3887b0"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/mqttUrlInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="MQTT URL，例如 tcp://host:1883"
+            android:text="ssl://testfcms.fanvil.com:8883"
+            android:inputType="textUri" />
+
+        <EditText
+            android:id="@+id/mqttUserInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="MQTT 用户名"
+            android:text="APP_1967770215329169410"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/initButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="初始化 SDK" />
+
+        <EditText
+            android:id="@+id/sipUsernameInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="被叫 SIP 用户名"
+            android:text="100002007"
+            android:inputType="text" />
+
+        <com.fanvil.link.sdk.rtc.FanvilRtcVideoView
+            android:id="@+id/rtcView"
+            android:layout_width="match_parent"
+            android:layout_height="240dp"
+            android:layout_marginTop="8dp"
+            android:background="#202020" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/callButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="呼叫" />
+
+            <Button
+                android:id="@+id/acceptButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="接听" />
+
+            <Button
+                android:id="@+id/endButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="挂断/拒接" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ToggleButton
+                android:id="@+id/muteButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textOff="麦克风开启"
+                android:textOn="已静音" />
+
+            <ToggleButton
+                android:id="@+id/speakerButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:checked="true"
+                android:textOff="听筒"
+                android:textOn="扬声器" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
