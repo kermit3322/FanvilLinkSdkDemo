@@ -99,6 +99,13 @@
                 android:text="呼叫" />
 
             <Button
+                android:id="@+id/monitorButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="监控" />
+
+            <Button
                 android:id="@+id/acceptButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -110,7 +117,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="挂断/拒接" />
+                android:text="挂断/停止" />
         </LinearLayout>
 
         <LinearLayout

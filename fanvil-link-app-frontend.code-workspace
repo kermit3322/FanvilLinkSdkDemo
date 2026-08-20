@@ -1,0 +1,36 @@
+{
+	"folders": [
+		{
+			"path": "E:/gitee/fanvil-link-app-frontend"
+		},
+		{
+			"path": "."
+		}
+	],
+  "settings": {
+    "workbench.list.smoothScrolling": true,
+    "workbench.tree.indent": 10,
+    "js/ts.tsdk.path": "node_modules/typescript/lib",
+    "js/ts.preferences.includePackageJsonAutoImports": "on",
+    "emmet.showSuggestionsAsSnippets": true,
+    "terminal.integrated.cursorBlinking": true,
+    "terminal.integrated.persistentSessionReviveProcess": "never",
+    "terminal.integrated.tabs.enabled": true,
+    "terminal.integrated.scrollback": 10000,
+    "files.simpleDialog.enable": true,
+    "files.associations": {
+      "*.json": "jsonc",
+      "package.json": "json",
+      "package-lock.json": "json",
+      "tsconfig*.json": "jsonc",
+      "app.json": "jsonc",
+      ".husky/*": "shellscript",
+      "commit-msg": "shellscript",
+      "pre-commit": "shellscript"
+    },
+    "search.followSymlinks": false,
+    "search.searchEditor.singleClickBehaviour": "peekDefinition",
+    "explorer.fileNesting.expand": false,
+    "extensions.ignoreRecommendations": true
+  }
+}

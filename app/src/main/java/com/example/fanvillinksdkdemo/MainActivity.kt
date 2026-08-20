@@ -51,7 +51,7 @@ class MainActivity : Activity() {
             showStatus("通话状态: $state")
             if (state == CallState.Connected) {
                 runSdkAction {
-                    FanvilLinkSdk.joinCallMedia(rtcView, speakerOn = true, micEnabled = true)
+                    FanvilLinkSdk.joinMedia(rtcView, speakerOn = true)
                 }
             }
         }
@@ -105,6 +105,18 @@ class MainActivity : Activity() {
             }
         }
 
+        findViewById<Button>(R.id.monitorButton).setOnClickListener {
+            val target = textOf(R.id.sipUsernameInput)
+            if (target.isBlank()) {
+                showStatus("请输入监控 SIP 用户名")
+                return@setOnClickListener
+            }
+            runSdkAction {
+                FanvilLinkSdk.startMonitor(target)
+                showStatus("正在监控 $target")
+            }
+        }
+
         findViewById<Button>(R.id.acceptButton).setOnClickListener {
             runSdkAction { FanvilLinkSdk.acceptCall() }
         }
@@ -112,7 +124,7 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.endButton).setOnClickListener {
             runSdkAction {
                 FanvilLinkSdk.endCall()
-                showStatus("通话已结束")
+                showStatus("已结束")
             }
         }
 

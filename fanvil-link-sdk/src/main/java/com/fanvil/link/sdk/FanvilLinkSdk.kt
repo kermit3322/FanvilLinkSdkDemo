@@ -39,6 +39,9 @@ object FanvilLinkSdk {
   @Volatile
   private var mediaJoined = false
 
+  @Volatile
+  private var monitorMode = false
+
   private val listeners = CopyOnWriteArrayList<FanvilSdkListener>()
 
   fun addListener(listener: FanvilSdkListener) {
@@ -115,6 +118,8 @@ object FanvilLinkSdk {
 
   fun isMediaJoined(): Boolean = mediaJoined
 
+  fun isMonitorMode(): Boolean = monitorMode
+
   fun getActiveCall(): CallSession? = activeCall
 
   fun openDoor(mac: String, whichDoor: Int = 1, doorNoList: List<Int>? = null) {
@@ -145,8 +150,18 @@ object FanvilLinkSdk {
     val session = CallService.startCall(sipCore, sipUsername, deviceId, displayName, type)
     activeCall = session
     mediaJoined = false
-    Log.i(TAG, "startCall ok callId=${session.callId}")
+    monitorMode = type == "monitor"
+    Log.i(TAG, "startCall ok callId=${session.callId} monitorMode=$monitorMode")
     return session
+  }
+
+  fun joinMedia(
+    videoContainer: ViewGroup? = null,
+    speakerOn: Boolean = true,
+  ) {
+    val micEnabled = !monitorMode
+    Log.i(TAG, "joinMedia speakerOn=$speakerOn micEnabled=$micEnabled monitorMode=$monitorMode")
+    joinCallMedia(videoContainer, speakerOn, micEnabled = micEnabled)
   }
 
   fun joinCallMedia(
@@ -211,6 +226,8 @@ object FanvilLinkSdk {
   fun acceptCall() {
     Log.i(TAG, "acceptCall")
     requireConfig()
+    monitorMode = false
+    mediaJoined = false
     CallService.accept(sip ?: throw IllegalStateException("SDK not initialized"))
   }
 
@@ -225,6 +242,7 @@ object FanvilLinkSdk {
     CallService.hangup(sipCore, rtc)
     activeCall = null
     mediaJoined = false
+    monitorMode = false
     Log.i(TAG, "endCall done")
   }
 
@@ -276,6 +294,7 @@ object FanvilLinkSdk {
     rtc = null
     activeCall = null
     mediaJoined = false
+    monitorMode = false
     config = null
     appContext = null
     Log.i(TAG, "shutdown done")
@@ -300,6 +319,8 @@ object FanvilLinkSdk {
         }
       }
       "onIncomingCall" -> {
+        monitorMode = false
+        mediaJoined = false
         listeners.forEach {
           it.onIncomingCall(
             payload["remoteUsername"] as? String,
@@ -312,6 +333,7 @@ object FanvilLinkSdk {
         val state = payload["state"] as? CallState ?: return
         if (state == CallState.End || state == CallState.Released || state == CallState.Error) {
           mediaJoined = false
+          monitorMode = false
         }
         listeners.forEach {
           it.onCallStateChanged(
