@@ -1,12 +1,12 @@
 {
 	"folders": [
-		{
-			"path": "E:/gitee/fanvil-link-app-frontend"
-		},
-		{
-			"path": "."
-		}
-	],
+    {
+      "path": "."
+    },
+    {
+      "path": "../AndroidDoorAccess"
+    }
+  ],
   "settings": {
     "workbench.list.smoothScrolling": true,
     "workbench.tree.indent": 10,

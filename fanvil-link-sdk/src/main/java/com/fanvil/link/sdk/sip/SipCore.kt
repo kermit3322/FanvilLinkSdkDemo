@@ -30,6 +30,7 @@ class SipCore(
 
   private var core: Core? = null
   private var started = false
+  val preferences = CorePreferences()
 
   @Volatile
   private var lastRegistrationState: SipRegistrationState? = null
@@ -117,10 +118,21 @@ class SipCore(
     c.addListener(listener)
     c.isVideoCaptureEnabled = true
     c.isVideoDisplayEnabled = true
+    applyEarlyMedia(c)
     c.start()
     core = c
     started = true
     Log.i(TAG, "SipCore initialized")
+  }
+
+  fun setAcceptEarlyMedia(enabled: Boolean) {
+    preferences.acceptEarlyMedia = enabled
+    core?.let { applyEarlyMedia(it) }
+    Log.i(TAG, "setAcceptEarlyMedia enabled=$enabled")
+  }
+
+  private fun applyEarlyMedia(c: Core) {
+    c.config.setBool("sip", "incoming_calls_early_media", preferences.acceptEarlyMedia)
   }
 
   private fun copyAssets() {

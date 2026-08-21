@@ -40,6 +40,7 @@ class SipMqttBridge(
   private var rtcReady: RtcReadyState? = null
   private val rtcWaiters = CopyOnWriteArrayList<(RtcReadyState) -> Unit>()
   private val mainHandler = Handler(Looper.getMainLooper())
+  var onRtcTokenReady: (() -> Unit)? = null
 
   data class RtcReadyState(
     val channelName: String,
@@ -109,22 +110,26 @@ class SipMqttBridge(
         }
       }
       MqttTopics.sipDown(agoraId) -> {
-        val sipBody = parseSipBody(payload) ?: return
-        val aid = try {
-          JSONObject(payload).optInt("aid", 0)
+        val msg = try {
+          JSONObject(payload)
         } catch (_: Exception) {
-          0
+          null
         }
-        val channelName = try {
-          JSONObject(payload).optString("channelName")
-        } catch (_: Exception) {
-          ""
+        val sipBody = parseSipBody(msg, payload) ?: return
+        val from = msg?.optString("from").orEmpty()
+        val to = msg?.optString("to").orEmpty()
+        val sipType = msg?.optInt("sipType", -1) ?: -1
+        val aid = msg?.optInt("aid", 0) ?: 0
+        val channelName = msg?.optString("channelName").orEmpty()
+        val callId = msg?.optString("callId").orEmpty()
+
+        // sipType=1 且 to 是自己 → 来电，按 sipBody 视频方向决定是否开预览
+        if (sipType == 1 && to == agoraId) {
+          val enableEarlyMedia = parseEnableEarlyMedia(sipBody)
+          Log.i(TAG, "incoming from=$from enableEarlyMedia=$enableEarlyMedia")
+          sip.setAcceptEarlyMedia(enableEarlyMedia)
         }
-        val callId = try {
-          JSONObject(payload).optString("callId")
-        } catch (_: Exception) {
-          ""
-        }
+
         if (aid > 0) rtcRemoteUid = aid
         if (channelName.isNotEmpty()) requestRtcToken(channelName, callId)
         LoopBackManager.feedMqttSipIncoming(sipBody)
@@ -188,7 +193,13 @@ class SipMqttBridge(
     rtcReady = null
     rtcRemoteUid = RinoRtcEngine.FV_DEVICE_REMOTE_ID
     rtcWaiters.clear()
+    onRtcTokenReady = null
   }
+
+  fun getChannelName(): String =
+    rtcReady?.channelName?.takeIf { it.isNotEmpty() } ?: pendingRtcChannel
+
+  fun isRtcReady(): Boolean = rtcReady != null
 
   private fun requestRtcToken(channelName: String, callId: String = rtcCallId) {
     if (callId.isNotEmpty() && rtcCallId != callId) {
@@ -252,6 +263,7 @@ class SipMqttBridge(
       rtcReady = ready
       rtcWaiters.toList().forEach { it(ready) }
       rtcWaiters.clear()
+      onRtcTokenReady?.invoke()
     } catch (e: Exception) {
       Log.w(TAG, "handleRtcTokenAck", e)
     }
@@ -272,17 +284,27 @@ class SipMqttBridge(
     return result!!
   }
 
-  private fun parseSipBody(payload: String): String? {
-    return try {
-      val parsed = JSONObject(payload)
-      when {
+  private fun parseSipBody(parsed: JSONObject?, payload: String): String? {
+    if (parsed != null) {
+      val body = when {
         parsed.has("sipBody") -> parsed.optString("sipBody")
         parsed.optJSONObject("data")?.has("sipBody") == true ->
           parsed.optJSONObject("data")!!.optString("sipBody")
-        else -> null
-      }.takeIf { !it.isNullOrEmpty() }
-    } catch (_: Exception) {
-      if (payload.contains("SIP/") || payload.startsWith("INVITE")) payload else null
+        else -> ""
+      }
+      if (body.isNotEmpty()) return body
     }
+    return if (payload.contains("SIP/") || payload.startsWith("INVITE")) payload else null
+  }
+
+  /** P-Early-Media: supported + m=video 且非 recvonly/inactive → 可开预览 */
+  private fun parseEnableEarlyMedia(sipBody: String): Boolean {
+    val hasEarlyMedia = sipBody.lineSequence().any { line ->
+      line.startsWith("P-Early-Media", ignoreCase = true) &&
+        line.contains("supported", ignoreCase = true)
+    }
+    if (!hasEarlyMedia || !sipBody.contains("m=video")) return false
+    val videoLine = sipBody.substring(sipBody.indexOf("m=video"))
+    return !(videoLine.contains("a=recvonly") || videoLine.contains("a=inactive"))
   }
 }
