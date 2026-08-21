@@ -3,7 +3,7 @@ package com.fanvil.link.sdk.sip
 import android.util.Log
 
 object LoopBackManager {
-  private const val TAG = "FanvilLoopBack"
+  private const val TAG = "FvLoopBack"
   const val LB_LISTEN_PORT = 17060
 
   @Volatile

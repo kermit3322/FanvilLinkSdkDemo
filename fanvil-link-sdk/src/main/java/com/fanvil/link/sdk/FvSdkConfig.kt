@@ -1,6 +1,6 @@
 package com.fanvil.link.sdk
 
-data class FanvilSdkConfig(
+data class FvSdkConfig(
   val userId: String,
   val agoraId: String,
   val agoraAppId: String,

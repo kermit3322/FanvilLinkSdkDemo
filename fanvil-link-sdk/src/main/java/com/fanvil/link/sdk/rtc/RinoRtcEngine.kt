@@ -32,8 +32,8 @@ class RinoRtcEngine(
   private val emit: (event: RtcEvent, payload: Map<String, Any?>) -> Unit,
 ) : RinoEventListener {
   companion object {
-    private const val TAG = "FanvilRtc"
-    const val FANVIL_DEVICE_REMOTE_ID = 100000004
+    private const val TAG = "FvRtc"
+    const val FV_DEVICE_REMOTE_ID = 100000004
     var dynamicAudioCodec: Int = 8
     private val xlogInitialized = AtomicBoolean(false)
   }
@@ -44,7 +44,7 @@ class RinoRtcEngine(
 
   private var agoraUserTokenVO: AgoraUserTokenVO? = null
   private var remoteChannelName: String = ""
-  private var remoteUid: Int = FANVIL_DEVICE_REMOTE_ID
+  private var remoteUid: Int = FV_DEVICE_REMOTE_ID
   private var agoraAppId: String = ""
   private var hasJoinChannelJob = false
   private var isMicEnabled = false
@@ -119,7 +119,7 @@ class RinoRtcEngine(
   }
 
   fun setRemoteUid(uid: Int) {
-    remoteUid = if (uid > 0) uid else FANVIL_DEVICE_REMOTE_ID
+    remoteUid = if (uid > 0) uid else FV_DEVICE_REMOTE_ID
   }
 
   fun setRemoteChannelName(channelName: String) {
@@ -253,7 +253,7 @@ class RinoRtcEngine(
       }
       agoraUserTokenVO = null
       remoteChannelName = ""
-      remoteUid = FANVIL_DEVICE_REMOTE_ID
+      remoteUid = FV_DEVICE_REMOTE_ID
     }
   }
 

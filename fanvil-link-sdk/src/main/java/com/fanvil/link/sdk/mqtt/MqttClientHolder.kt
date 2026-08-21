@@ -20,7 +20,7 @@ class MqttClientHolder(
   private val onMessage: (topic: String, payload: String) -> Unit,
 ) {
   companion object {
-    private const val TAG = "FanvilMqtt"
+    private const val TAG = "FvMqtt"
     const val QOS_UNRELIABLE = 0
   }
 

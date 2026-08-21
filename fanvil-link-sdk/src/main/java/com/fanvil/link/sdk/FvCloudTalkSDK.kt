@@ -5,39 +5,40 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.ViewGroup
+import android.widget.Toast
 import com.fanvil.link.sdk.bridge.SipMqttBridge
 import com.fanvil.link.sdk.call.CallService
 import com.fanvil.link.sdk.call.CallSession
 import com.fanvil.link.sdk.call.CallState
 import com.fanvil.link.sdk.door.DoorService
-import com.fanvil.link.sdk.listener.FanvilSdkListener
+import com.fanvil.link.sdk.listener.FvSdkListener
 import com.fanvil.link.sdk.mqtt.MqttClientHolder
 import com.fanvil.link.sdk.mqtt.buildMqttUsername
 import com.fanvil.link.sdk.mqtt.defaultSubscribeTopics
-import com.fanvil.link.sdk.rtc.FanvilRtcVideoView
+import com.fanvil.link.sdk.rtc.FvRtcVideoView
 import com.fanvil.link.sdk.rtc.RinoRtcEngine
 import com.fanvil.link.sdk.sip.SipCore
 import com.fanvil.link.sdk.sip.SipRegistrationState
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * Fanvil Link 原生 SDK 入口（开门 / 呼叫 / RTC）。
+ * Fv CloudTalk 原生 SDK 入口（开门 / 呼叫 / RTC）。
  * 原生工程与 Expo Module 共用同一套实现。
  */
-object FanvilLinkSdk {
-  private const val TAG = "FanvilLinkSdk1"
+object FvCloudTalkSDK {
+  private const val TAG = "FvCloudTalkSDK"
 
   @Volatile
   private var appContext: Context? = null
 
   @Volatile
-  private var config: FanvilSdkConfig? = null
+  private var config: FvSdkConfig? = null
 
   private var mqtt: MqttClientHolder? = null
   private var sip: SipCore? = null
   private var rtc: RinoRtcEngine? = null
   @Volatile
-  private var rtcVideoView: FanvilRtcVideoView? = null
+  private var rtcVideoView: FvRtcVideoView? = null
   private var bridge: SipMqttBridge? = null
   private var activeCall: CallSession? = null
 
@@ -63,19 +64,19 @@ object FanvilLinkSdk {
     }
   }
 
-  private val listeners = CopyOnWriteArrayList<FanvilSdkListener>()
+  private val listeners = CopyOnWriteArrayList<FvSdkListener>()
 
-  fun addListener(listener: FanvilSdkListener) {
+  fun addListener(listener: FvSdkListener) {
     listeners.add(listener)
     Log.d(TAG, "addListener size=${listeners.size}")
   }
 
-  fun removeListener(listener: FanvilSdkListener) {
+  fun removeListener(listener: FvSdkListener) {
     listeners.remove(listener)
     Log.d(TAG, "removeListener size=${listeners.size}")
   }
 
-  fun initialize(context: Context, config: FanvilSdkConfig) {
+  fun initialize(context: Context, config: FvSdkConfig) {
     Log.i(
       TAG,
       "initialize userId=${config.userId} agoraId=${config.agoraId} " +
@@ -93,7 +94,7 @@ object FanvilLinkSdk {
         bridge?.onMqttConnectionChanged(status == "connected")
       },
       onMessage = { topic, payload ->
-        Log.d(TAG, "mqtt message topic=$topic len=${payload.length}")
+        Log.d(TAG, "mqtt message topic=$topic payload=$payload")
         listeners.forEach { it.onMqttMessage(topic, payload) }
         bridge?.onMqttMessage(topic, payload)
       },
@@ -143,20 +144,25 @@ object FanvilLinkSdk {
 
   fun getActiveCall(): CallSession? = activeCall
 
-  fun getRtcView(context: Context): FanvilRtcVideoView {
+  fun getRtcView(context: Context): FvRtcVideoView {
+    if (appContext == null) appContext = context.applicationContext
     val existing = rtcVideoView
     if (existing != null) {
       (existing.parent as? ViewGroup)?.removeView(existing)
       return existing
     }
-    return FanvilRtcVideoView(context).also { rtcVideoView = it }
+    return FvRtcVideoView(context).also { rtcVideoView = it }
   }
 
   fun openDoor(mac: String, whichDoor: Int = 1, doorNoList: List<Int>? = null) {
     Log.i(TAG, "openDoor mac=$mac whichDoor=$whichDoor doorNoList=$doorNoList")
-    val cfg = requireConfig()
-    val mqttHolder = mqtt ?: throw IllegalStateException("SDK not initialized")
-    if (!mqttHolder.isConnected()) throw IllegalStateException("MQTT is not connected")
+    if (!ensureInitialized()) return
+    val cfg = config ?: return
+    val mqttHolder = mqtt ?: return
+    if (!mqttHolder.isConnected()) {
+      Log.w(TAG, "openDoor skipped: MQTT is not connected")
+      return
+    }
     DoorService.openDoor(mqttHolder, cfg.userId, mac, whichDoor, doorNoList)
     Log.i(TAG, "openDoor published userId=${cfg.userId}")
   }
@@ -165,23 +171,31 @@ object FanvilLinkSdk {
     sipUsername: String,
     displayName: String? = null,
     type: String = "video",
-  ): CallSession {
+  ) {
+    startOutgoingCall(sipUsername, displayName, type)
+  }
+
+  private fun startOutgoingCall(
+    sipUsername: String,
+    displayName: String?,
+    type: String,
+  ): Boolean {
     Log.i(
       TAG,
       "startCall sipUsername=$sipUsername type=$type displayName=$displayName",
     )
-    requireConfig()
-    val sipCore = sip ?: throw IllegalStateException("SDK not initialized")
+    if (!ensureInitialized()) return false
+    val sipCore = sip ?: return false
     if (sipCore.isCalling()) {
-      Log.w(TAG, "startCall rejected: already calling")
-      throw IllegalStateException("A call is already in progress")
+      Log.w(TAG, "startCall skipped: already calling")
+      return false
     }
     val session = CallService.startCall(sipCore, sipUsername, displayName, type)
     activeCall = session
     mediaJoined = false
     monitorMode = type == "monitor"
     Log.i(TAG, "startCall ok callId=${session.callId} monitorMode=$monitorMode")
-    return session
+    return true
   }
 
   private fun joinMedia(speakerOn: Boolean = true) {
@@ -200,8 +214,10 @@ object FanvilLinkSdk {
       "joinCallMedia speakerOn=$speakerOn micEnabled=$micEnabled " +
         "hasContainer=${videoContainer != null}",
     )
-    requireConfig()
-    val sipBridge = bridge ?: throw IllegalStateException("SDK not initialized")
+    val sipBridge = bridge
+    if (!ensureInitialized() || sipBridge == null) {
+      return
+    }
     if (mediaJoined) {
       Log.i(TAG, "joinCallMedia skipped: already joined")
       return
@@ -211,7 +227,8 @@ object FanvilLinkSdk {
       sipBridge.joinOutgoingCallRtc(videoContainer, speakerOn, micEnabled = micEnabled)
     } catch (e: Exception) {
       mediaJoined = false
-      throw e
+      Log.e(TAG, "joinCallMedia failed", e)
+      return
     }
     Log.i(TAG, "joinCallMedia done")
   }
@@ -220,12 +237,12 @@ object FanvilLinkSdk {
     sipUsername: String,
     displayName: String? = null,
     timeoutSeconds: Int = 30,
-  ): CallSession {
+  ) {
     Log.i(TAG, "startMonitor sipUsername=$sipUsername timeoutSeconds=$timeoutSeconds")
+    if (!ensureInitialized()) return
     setMuted(true)
-    val session = startCall(sipUsername, displayName, type = "monitor")
+    if (!startOutgoingCall(sipUsername, displayName, type = "monitor")) return
     startMonitorTimer(timeoutSeconds)
-    return session
   }
 
   private fun startMonitorTimer(timeoutSeconds: Int) {
@@ -241,9 +258,9 @@ object FanvilLinkSdk {
 
   fun takeSnapshot(filePath: String? = null, saveToGallery: Boolean = false): Int {
     Log.i(TAG, "takeSnapshot filePath=$filePath saveToGallery=$saveToGallery")
-    requireConfig()
-    val code = rtc?.takeSnapshot(filePath, saveToGallery)
-      ?: throw IllegalStateException("RTC is not ready")
+    if (!ensureInitialized()) return -1
+    val rtcEngine = rtc ?: return -1
+    val code = rtcEngine.takeSnapshot(filePath, saveToGallery)
     Log.i(TAG, "takeSnapshot result=$code")
     return code
   }
@@ -259,10 +276,11 @@ object FanvilLinkSdk {
 
   fun acceptCall() {
     Log.i(TAG, "acceptCall")
-    requireConfig()
+    if (!ensureInitialized()) return
+    val sipCore = sip ?: return
     monitorMode = false
     mediaJoined = false
-    CallService.accept(sip ?: throw IllegalStateException("SDK not initialized"))
+    CallService.accept(sipCore)
   }
 
   fun rejectCall() {
@@ -337,13 +355,14 @@ object FanvilLinkSdk {
     Log.i(TAG, "shutdown done")
   }
 
-  private fun requireConfig(): FanvilSdkConfig {
-    val cfg = config
-    if (cfg == null) {
-      Log.e(TAG, "requireConfig failed: SDK not initialized")
-      throw IllegalStateException("Fanvil SDK is not initialized")
+  private fun ensureInitialized(): Boolean {
+    if (config != null && sip != null) return true
+    Log.w(TAG, "SDK not initialized")
+    val ctx = appContext ?: return false
+    mainHandler.post {
+      Toast.makeText(ctx, "SDK not initialized", Toast.LENGTH_SHORT).show()
     }
-    return cfg
+    return false
   }
 
   private fun dispatchSipEvent(event: String, payload: Map<String, Any?>) {

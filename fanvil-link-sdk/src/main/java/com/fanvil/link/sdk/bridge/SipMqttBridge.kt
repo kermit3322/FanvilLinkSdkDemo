@@ -25,7 +25,7 @@ class SipMqttBridge(
   private val rtc: RinoRtcEngine,
 ) {
   companion object {
-    private const val TAG = "FanvilBridge"
+    private const val TAG = "FvBridge"
   }
 
   private var agoraId: String = ""
@@ -36,7 +36,7 @@ class SipMqttBridge(
   private val started = AtomicBoolean(false)
   private var pendingRtcChannel = ""
   private var rtcCallId = ""
-  private var rtcRemoteUid = RinoRtcEngine.FANVIL_DEVICE_REMOTE_ID
+  private var rtcRemoteUid = RinoRtcEngine.FV_DEVICE_REMOTE_ID
   private var rtcReady: RtcReadyState? = null
   private val rtcWaiters = CopyOnWriteArrayList<(RtcReadyState) -> Unit>()
   private val mainHandler = Handler(Looper.getMainLooper())
@@ -160,7 +160,7 @@ class SipMqttBridge(
     rtc.setRemoteChannelName(ready.channelName)
     rtc.setMicEnabled(micEnabled)
     val container = videoContainer ?: RtcViewRegistry.current
-      ?: throw IllegalStateException("FanvilRtcVideoView not mounted")
+      ?: throw IllegalStateException("FvRtcVideoView not mounted")
     rtc.attachPlayerContainer(container)
 
     var lastError: Exception? = null
@@ -176,7 +176,7 @@ class SipMqttBridge(
         Thread.sleep(150)
       }
     }
-    throw lastError ?: IllegalStateException("FanvilRtcVideoView not mounted")
+    throw lastError ?: IllegalStateException("FvRtcVideoView not mounted")
   }
 
   fun stop() {
@@ -186,7 +186,7 @@ class SipMqttBridge(
     pendingRtcChannel = ""
     rtcCallId = ""
     rtcReady = null
-    rtcRemoteUid = RinoRtcEngine.FANVIL_DEVICE_REMOTE_ID
+    rtcRemoteUid = RinoRtcEngine.FV_DEVICE_REMOTE_ID
     rtcWaiters.clear()
   }
 

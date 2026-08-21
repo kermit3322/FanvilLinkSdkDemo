@@ -11,10 +11,10 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.ToggleButton
 import androidx.core.app.ActivityCompat
-import com.fanvil.link.sdk.FanvilLinkSdk
-import com.fanvil.link.sdk.FanvilSdkConfig
+import com.fanvil.link.sdk.FvCloudTalkSDK
+import com.fanvil.link.sdk.FvSdkConfig
 import com.fanvil.link.sdk.call.CallState
-import com.fanvil.link.sdk.listener.FanvilSdkListener
+import com.fanvil.link.sdk.listener.FvSdkListener
 import com.fanvil.link.sdk.rtc.RtcEvent
 import com.fanvil.link.sdk.sip.SipRegistrationState
 
@@ -25,7 +25,7 @@ class MainActivity : Activity() {
 
     private lateinit var statusText: TextView
 
-    private val sdkListener = object : FanvilSdkListener {
+    private val sdkListener = object : FvSdkListener {
         override fun onMqttConnectionChanged(
             status: String,
             code: Int?,
@@ -66,13 +66,13 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
         statusText = findViewById(R.id.statusText)
         findViewById<FrameLayout>(R.id.rtcView).addView(
-            FanvilLinkSdk.getRtcView(this),
+            FvCloudTalkSDK.getRtcView(this),
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT,
             ),
         )
-        FanvilLinkSdk.addListener(sdkListener)
+        FvCloudTalkSDK.addListener(sdkListener)
         requestMediaPermissions()
 
         findViewById<Button>(R.id.initButton).setOnClickListener {
@@ -86,9 +86,9 @@ class MainActivity : Activity() {
                 showStatus("请填写完整的初始化参数")
                 return@setOnClickListener
             }
-            FanvilLinkSdk.initialize(
+            FvCloudTalkSDK.initialize(
                 this,
-                FanvilSdkConfig(
+                FvSdkConfig(
                     userId = userId,
                     agoraId = agoraId,
                     agoraAppId = appId,
@@ -107,7 +107,7 @@ class MainActivity : Activity() {
                 showStatus("请输入被叫 SIP 用户名")
                 return@setOnClickListener
             }
-            FanvilLinkSdk.startCall(target, type = "video")
+            FvCloudTalkSDK.startCall(target, type = "video")
             showStatus("正在呼叫 $target")
         }
 
@@ -117,24 +117,24 @@ class MainActivity : Activity() {
                 showStatus("请输入监控 SIP 用户名")
                 return@setOnClickListener
             }
-            FanvilLinkSdk.startMonitor(target)
+            FvCloudTalkSDK.startMonitor(target)
             showStatus("正在监控 $target")
         }
 
         findViewById<Button>(R.id.acceptButton).setOnClickListener {
-            FanvilLinkSdk.acceptCall()
+            FvCloudTalkSDK.acceptCall()
         }
 
         findViewById<Button>(R.id.endButton).setOnClickListener {
-            FanvilLinkSdk.endCall()
+            FvCloudTalkSDK.endCall()
             showStatus("已结束")
         }
 
         findViewById<ToggleButton>(R.id.muteButton).setOnCheckedChangeListener { _, checked ->
-            FanvilLinkSdk.setMuted(checked)
+            FvCloudTalkSDK.setMuted(checked)
         }
         findViewById<ToggleButton>(R.id.speakerButton).setOnCheckedChangeListener { _, checked ->
-            FanvilLinkSdk.setSpeakerOn(checked)
+            FvCloudTalkSDK.setSpeakerOn(checked)
         }
     }
 
@@ -157,8 +157,8 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
-        FanvilLinkSdk.removeListener(sdkListener)
-        FanvilLinkSdk.shutdown()
+        FvCloudTalkSDK.removeListener(sdkListener)
+        FvCloudTalkSDK.shutdown()
         super.onDestroy()
     }
 }

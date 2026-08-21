@@ -25,7 +25,7 @@ object RtcViewLayout {
 /**
  * 原生工程视频容器（非 ExpoView）。
  */
-class FanvilRtcVideoView @JvmOverloads constructor(
+class FvRtcVideoView @JvmOverloads constructor(
   context: Context,
   attrs: AttributeSet? = null,
 ) : FrameLayout(context, attrs) {
