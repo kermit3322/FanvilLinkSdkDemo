@@ -12,6 +12,7 @@ import com.fanvil.link.sdk.listener.FanvilSdkListener
 import com.fanvil.link.sdk.mqtt.MqttClientHolder
 import com.fanvil.link.sdk.mqtt.buildMqttUsername
 import com.fanvil.link.sdk.mqtt.defaultSubscribeTopics
+import com.fanvil.link.sdk.rtc.FanvilRtcVideoView
 import com.fanvil.link.sdk.rtc.RinoRtcEngine
 import com.fanvil.link.sdk.sip.SipCore
 import com.fanvil.link.sdk.sip.SipRegistrationState
@@ -33,6 +34,8 @@ object FanvilLinkSdk {
   private var mqtt: MqttClientHolder? = null
   private var sip: SipCore? = null
   private var rtc: RinoRtcEngine? = null
+  @Volatile
+  private var rtcVideoView: FanvilRtcVideoView? = null
   private var bridge: SipMqttBridge? = null
   private var activeCall: CallSession? = null
 
@@ -122,6 +125,15 @@ object FanvilLinkSdk {
 
   fun getActiveCall(): CallSession? = activeCall
 
+  fun getRtcView(context: Context): FanvilRtcVideoView {
+    val existing = rtcVideoView
+    if (existing != null) {
+      (existing.parent as? ViewGroup)?.removeView(existing)
+      return existing
+    }
+    return FanvilRtcVideoView(context).also { rtcVideoView = it }
+  }
+
   fun openDoor(mac: String, whichDoor: Int = 1, doorNoList: List<Int>? = null) {
     Log.i(TAG, "openDoor mac=$mac whichDoor=$whichDoor doorNoList=$doorNoList")
     val cfg = requireConfig()
@@ -155,16 +167,13 @@ object FanvilLinkSdk {
     return session
   }
 
-  fun joinMedia(
-    videoContainer: ViewGroup? = null,
-    speakerOn: Boolean = true,
-  ) {
+  private fun joinMedia(speakerOn: Boolean = true) {
     val micEnabled = !monitorMode
     Log.i(TAG, "joinMedia speakerOn=$speakerOn micEnabled=$micEnabled monitorMode=$monitorMode")
-    joinCallMedia(videoContainer, speakerOn, micEnabled = micEnabled)
+    joinCallMedia(rtcVideoView, speakerOn, micEnabled = micEnabled)
   }
 
-  fun joinCallMedia(
+  private fun joinCallMedia(
     videoContainer: ViewGroup? = null,
     speakerOn: Boolean = true,
     micEnabled: Boolean = true,
@@ -198,11 +207,6 @@ object FanvilLinkSdk {
     Log.i(TAG, "startMonitor sipUsername=$sipUsername deviceId=$deviceId")
     setMuted(true)
     return startCall(sipUsername, deviceId, displayName, type = "monitor")
-  }
-
-  fun joinMonitorMedia(videoContainer: ViewGroup? = null, speakerOn: Boolean = true) {
-    Log.i(TAG, "joinMonitorMedia speakerOn=$speakerOn")
-    joinCallMedia(videoContainer, speakerOn, micEnabled = false)
   }
 
   fun takeSnapshot(filePath: String? = null, saveToGallery: Boolean = false): Int {
@@ -292,6 +296,8 @@ object FanvilLinkSdk {
     mqtt = null
     sip = null
     rtc = null
+    rtcVideoView?.let { (it.parent as? ViewGroup)?.removeView(it) }
+    rtcVideoView = null
     activeCall = null
     mediaJoined = false
     monitorMode = false
@@ -318,19 +324,19 @@ object FanvilLinkSdk {
           it.onSipRegistration(state, payload["message"] as? String ?: "")
         }
       }
-      "onIncomingCall" -> {
-        monitorMode = false
-        mediaJoined = false
-        listeners.forEach {
-          it.onIncomingCall(
-            payload["remoteUsername"] as? String,
-            payload["remoteDisplayName"] as? String,
-            payload["remoteAddress"] as? String,
-          )
-        }
-      }
       "onCallStateChanged" -> {
         val state = payload["state"] as? CallState ?: return
+        if (state == CallState.Incoming) {
+          monitorMode = false
+          mediaJoined = false
+        }
+        if (state == CallState.Connected) {
+          try {
+            joinMedia()
+          } catch (e: Exception) {
+            Log.e(TAG, "auto joinMedia failed", e)
+          }
+        }
         if (state == CallState.End || state == CallState.Released || state == CallState.Error) {
           mediaJoined = false
           monitorMode = false

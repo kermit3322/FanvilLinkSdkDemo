@@ -7,11 +7,6 @@ interface FanvilSdkListener {
   fun onMqttConnectionChanged(status: String, code: Int?, message: String?, reconnect: Boolean?) {}
   fun onMqttMessage(topic: String, payload: String) {}
   fun onSipRegistration(state: SipRegistrationState, message: String) {}
-  fun onIncomingCall(
-    remoteUsername: String?,
-    remoteDisplayName: String?,
-    remoteAddress: String?,
-  ) {}
   fun onCallStateChanged(
     state: CallState,
     remoteUsername: String?,

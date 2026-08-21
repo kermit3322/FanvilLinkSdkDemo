@@ -90,7 +90,6 @@ class SipCore(
         val key = remote?.asStringUriOnly().orEmpty()
         if (key == lastIncomingKey) return
         lastIncomingKey = key
-        emit("onIncomingCall", base)
       }
 
       if (businessState == lastCallBusinessState) return

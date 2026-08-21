@@ -46,7 +46,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Access Token"
-            android:text="bf23c596f7694e48bfa15bffcd3887b0"
+            android:text="125623198dc74fe7bb7994a38e813336"
             android:inputType="text" />
 
         <EditText
@@ -79,7 +79,7 @@
             android:text="100002007"
             android:inputType="text" />
 
-        <com.fanvil.link.sdk.rtc.FanvilRtcVideoView
+        <FrameLayout
             android:id="@+id/rtcView"
             android:layout_width="match_parent"
             android:layout_height="240dp"

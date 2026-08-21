@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.ToggleButton
 import androidx.core.app.ActivityCompat
@@ -13,12 +14,10 @@ import com.fanvil.link.sdk.FanvilLinkSdk
 import com.fanvil.link.sdk.FanvilSdkConfig
 import com.fanvil.link.sdk.call.CallState
 import com.fanvil.link.sdk.listener.FanvilSdkListener
-import com.fanvil.link.sdk.rtc.FanvilRtcVideoView
 import com.fanvil.link.sdk.sip.SipRegistrationState
 
 class MainActivity : Activity() {
     private lateinit var statusText: TextView
-    private lateinit var rtcView: FanvilRtcVideoView
 
     private val sdkListener = object : FanvilSdkListener {
         override fun onMqttConnectionChanged(
@@ -34,25 +33,16 @@ class MainActivity : Activity() {
             showStatus("SIP: $state $message")
         }
 
-        override fun onIncomingCall(
-            remoteUsername: String?,
-            remoteDisplayName: String?,
-            remoteAddress: String?
-        ) {
-            showStatus("来电: ${remoteDisplayName ?: remoteUsername.orEmpty()}")
-        }
-
         override fun onCallStateChanged(
             state: CallState,
             remoteUsername: String?,
             remoteDisplayName: String?,
             remoteAddress: String?
         ) {
-            showStatus("通话状态: $state")
-            if (state == CallState.Connected) {
-                runSdkAction {
-                    FanvilLinkSdk.joinMedia(rtcView, speakerOn = true)
-                }
+            if (state == CallState.Incoming) {
+                showStatus("来电: ${remoteDisplayName ?: remoteUsername.orEmpty()}")
+            } else {
+                showStatus("通话状态: $state")
             }
         }
     }
@@ -61,7 +51,13 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         statusText = findViewById(R.id.statusText)
-        rtcView = findViewById(R.id.rtcView)
+        findViewById<FrameLayout>(R.id.rtcView).addView(
+            FanvilLinkSdk.getRtcView(this),
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
+            ),
+        )
         FanvilLinkSdk.addListener(sdkListener)
         requestMediaPermissions()
 
