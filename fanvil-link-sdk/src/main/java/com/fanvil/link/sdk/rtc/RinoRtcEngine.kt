@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class RinoRtcEngine(
   private val context: Context,
-  private val emit: (event: String, payload: Map<String, Any?>) -> Unit,
+  private val emit: (event: RtcEvent, payload: Map<String, Any?>) -> Unit,
 ) : RinoEventListener {
   companion object {
     private const val TAG = "FanvilRtc"
@@ -341,7 +341,7 @@ class RinoRtcEngine(
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onConnectionStateChanged -> {
         val state = (event.data?.get("state") as? Number)?.toInt() ?: 0
         val reason = (event.data?.get("reason") as? Number)?.toInt()
-        emit("onConnectionChanged", mapOf("state" to state, "reason" to reason))
+        emit(RtcEvent.ConnectionChanged, mapOf("state" to state, "reason" to reason))
       }
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onJoinChannelSuccess,
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onRejoinChannelSuccess,
@@ -350,7 +350,7 @@ class RinoRtcEngine(
           if (isMicEnabled) startPushAudio(uid) else stopPushAudio(uid)
         }
         emit(
-          "onJoinChannel",
+          RtcEvent.JoinChannel,
           mapOf(
             "channel" to agoraUserTokenVO?.rtcToken?.channelName,
             "uid" to agoraUserTokenVO?.userId?.toIntOrNull(),
@@ -358,27 +358,27 @@ class RinoRtcEngine(
         )
       }
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onFirstRemoteVideoFrame -> {
-        emit("onFirstVideoFrame", emptyMap())
+        emit(RtcEvent.FirstVideoFrame, emptyMap())
       }
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onRemoteVideoStateChanged -> {
         val state = (event.data?.get("state") as? Number)?.toInt()
         val reason = (event.data?.get("reason") as? Number)?.toInt()
-        emit("onVideoStateChanged", mapOf("state" to state, "reason" to reason))
+        emit(RtcEvent.VideoStateChanged, mapOf("state" to state, "reason" to reason))
       }
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onLeaveChannel -> {
         hasJoinChannelJob = false
-        emit("onLeaveChannel", emptyMap())
+        emit(RtcEvent.LeaveChannel, emptyMap())
       }
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onUserOffline -> {
-        emit("onUserOffline", emptyMap())
+        emit(RtcEvent.UserOffline, emptyMap())
       }
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onSnapshotTaken -> {
         val errCode = (event.data?.get("errCode") as? Number)?.toInt() ?: -1
-        emit("onSnapshotTaken", mapOf("result" to errCode, "path" to lastSnapshotPath))
+        emit(RtcEvent.SnapshotTaken, mapOf("result" to errCode, "path" to lastSnapshotPath))
       }
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onTokenPrivilegeWillExpire -> {
         emit(
-          "onTokenWillExpire",
+          RtcEvent.TokenWillExpire,
           mapOf("channelName" to agoraUserTokenVO?.rtcToken?.channelName),
         )
       }

@@ -1,6 +1,7 @@
 package com.fanvil.link.sdk.listener
 
 import com.fanvil.link.sdk.call.CallState
+import com.fanvil.link.sdk.rtc.RtcEvent
 import com.fanvil.link.sdk.sip.SipRegistrationState
 
 interface FanvilSdkListener {
@@ -13,5 +14,5 @@ interface FanvilSdkListener {
     remoteDisplayName: String?,
     remoteAddress: String?,
   ) {}
-  fun onRtcEvent(event: String, payload: Map<String, Any?>) {}
+  fun onRtcEvent(event: RtcEvent, payload: Map<String, Any?>) {}
 }

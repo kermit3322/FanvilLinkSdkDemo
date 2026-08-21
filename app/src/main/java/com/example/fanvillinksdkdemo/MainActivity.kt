@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -14,9 +15,14 @@ import com.fanvil.link.sdk.FanvilLinkSdk
 import com.fanvil.link.sdk.FanvilSdkConfig
 import com.fanvil.link.sdk.call.CallState
 import com.fanvil.link.sdk.listener.FanvilSdkListener
+import com.fanvil.link.sdk.rtc.RtcEvent
 import com.fanvil.link.sdk.sip.SipRegistrationState
 
 class MainActivity : Activity() {
+    companion object {
+        const val TAG = "Fvl_MainActivity"
+    }
+
     private lateinit var statusText: TextView
 
     private val sdkListener = object : FanvilSdkListener {
@@ -44,6 +50,10 @@ class MainActivity : Activity() {
             } else {
                 showStatus("通话状态: $state")
             }
+        }
+
+        override fun onRtcEvent(event: RtcEvent, payload: Map<String, Any?>) {
+            Log.e(TAG, "onRtcEvent event=$event,payload=$payload")
         }
     }
 
@@ -150,7 +160,12 @@ class MainActivity : Activity() {
 
     private fun requestMediaPermissions() {
         val permissions = arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
-        if (permissions.any { ActivityCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }) {
+        if (permissions.any {
+                ActivityCompat.checkSelfPermission(
+                    this,
+                    it
+                ) != PackageManager.PERMISSION_GRANTED
+            }) {
             ActivityCompat.requestPermissions(this, permissions, 100)
         }
     }
