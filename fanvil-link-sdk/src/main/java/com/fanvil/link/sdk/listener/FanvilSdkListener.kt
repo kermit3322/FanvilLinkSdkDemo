@@ -15,4 +15,5 @@ interface FanvilSdkListener {
     remoteAddress: String?,
   ) {}
   fun onRtcEvent(event: RtcEvent, payload: Map<String, Any?>) {}
+  fun onMonitorCountdown(remainSeconds: Int) {}
 }

@@ -13,12 +13,11 @@ object CallService {
   fun startCall(
     sip: SipCore,
     sipUsername: String,
-    deviceId: String = sipUsername,
     displayName: String? = null,
     type: String = "video",
   ): CallSession {
     sip.makeCall(username = sipUsername, displayName = displayName, type = type)
-    return CallSession(callId = "${deviceId}_${System.currentTimeMillis()}", deviceId = deviceId)
+    return CallSession(callId = "${sipUsername}_${System.currentTimeMillis()}", deviceId = sipUsername)
   }
 
   fun accept(sip: SipCore) {

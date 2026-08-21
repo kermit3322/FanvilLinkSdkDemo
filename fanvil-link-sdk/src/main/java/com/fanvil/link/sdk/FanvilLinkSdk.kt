@@ -1,6 +1,8 @@
 package com.fanvil.link.sdk
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.ViewGroup
 import com.fanvil.link.sdk.bridge.SipMqttBridge
@@ -44,6 +46,22 @@ object FanvilLinkSdk {
 
   @Volatile
   private var monitorMode = false
+
+  private val mainHandler = Handler(Looper.getMainLooper())
+  private var monitorRemainSeconds = 0
+  private val monitorTick = object : Runnable {
+    override fun run() {
+      val remain = monitorRemainSeconds
+      listeners.forEach { it.onMonitorCountdown(remain) }
+      if (remain <= 0) {
+        stopMonitorTimer()
+        endCall()
+        return
+      }
+      monitorRemainSeconds = remain - 1
+      mainHandler.postDelayed(this, 1000)
+    }
+  }
 
   private val listeners = CopyOnWriteArrayList<FanvilSdkListener>()
 
@@ -145,13 +163,12 @@ object FanvilLinkSdk {
 
   fun startCall(
     sipUsername: String,
-    deviceId: String = sipUsername,
     displayName: String? = null,
     type: String = "video",
   ): CallSession {
     Log.i(
       TAG,
-      "startCall sipUsername=$sipUsername deviceId=$deviceId type=$type displayName=$displayName",
+      "startCall sipUsername=$sipUsername type=$type displayName=$displayName",
     )
     requireConfig()
     val sipCore = sip ?: throw IllegalStateException("SDK not initialized")
@@ -159,7 +176,7 @@ object FanvilLinkSdk {
       Log.w(TAG, "startCall rejected: already calling")
       throw IllegalStateException("A call is already in progress")
     }
-    val session = CallService.startCall(sipCore, sipUsername, deviceId, displayName, type)
+    val session = CallService.startCall(sipCore, sipUsername, displayName, type)
     activeCall = session
     mediaJoined = false
     monitorMode = type == "monitor"
@@ -201,12 +218,25 @@ object FanvilLinkSdk {
 
   fun startMonitor(
     sipUsername: String,
-    deviceId: String = sipUsername,
     displayName: String? = null,
+    timeoutSeconds: Int = 30,
   ): CallSession {
-    Log.i(TAG, "startMonitor sipUsername=$sipUsername deviceId=$deviceId")
+    Log.i(TAG, "startMonitor sipUsername=$sipUsername timeoutSeconds=$timeoutSeconds")
     setMuted(true)
-    return startCall(sipUsername, deviceId, displayName, type = "monitor")
+    val session = startCall(sipUsername, displayName, type = "monitor")
+    startMonitorTimer(timeoutSeconds)
+    return session
+  }
+
+  private fun startMonitorTimer(timeoutSeconds: Int) {
+    stopMonitorTimer()
+    if (timeoutSeconds <= 0) return
+    monitorRemainSeconds = timeoutSeconds
+    mainHandler.post(monitorTick)
+  }
+
+  private fun stopMonitorTimer() {
+    mainHandler.removeCallbacks(monitorTick)
   }
 
   fun takeSnapshot(filePath: String? = null, saveToGallery: Boolean = false): Int {
@@ -247,6 +277,7 @@ object FanvilLinkSdk {
     activeCall = null
     mediaJoined = false
     monitorMode = false
+    stopMonitorTimer()
     Log.i(TAG, "endCall done")
   }
 
@@ -329,6 +360,7 @@ object FanvilLinkSdk {
         if (state == CallState.Incoming) {
           monitorMode = false
           mediaJoined = false
+          stopMonitorTimer()
         }
         if (state == CallState.Connected) {
           try {
@@ -340,6 +372,7 @@ object FanvilLinkSdk {
         if (state == CallState.End || state == CallState.Released || state == CallState.Error) {
           mediaJoined = false
           monitorMode = false
+          stopMonitorTimer()
         }
         listeners.forEach {
           it.onCallStateChanged(

@@ -55,6 +55,10 @@ class MainActivity : Activity() {
         override fun onRtcEvent(event: RtcEvent, payload: Map<String, Any?>) {
             Log.e(TAG, "onRtcEvent event=$event,payload=$payload")
         }
+
+        override fun onMonitorCountdown(remainSeconds: Int) {
+            showStatus("监控剩余: ${remainSeconds}s")
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,21 +86,19 @@ class MainActivity : Activity() {
                 showStatus("请填写完整的初始化参数")
                 return@setOnClickListener
             }
-            runSdkAction {
-                FanvilLinkSdk.initialize(
-                    this,
-                    FanvilSdkConfig(
-                        userId = userId,
-                        agoraId = agoraId,
-                        agoraAppId = appId,
-                        accessToken = token,
-                        mqttUrl = mqttUrl,
-                        mqttUserName = mqttUser,
-                        displayName = "Android Demo"
-                    )
+            FanvilLinkSdk.initialize(
+                this,
+                FanvilSdkConfig(
+                    userId = userId,
+                    agoraId = agoraId,
+                    agoraAppId = appId,
+                    accessToken = token,
+                    mqttUrl = mqttUrl,
+                    mqttUserName = mqttUser,
+                    displayName = "Android Demo"
                 )
-                showStatus("SDK 初始化完成")
-            }
+            )
+            showStatus("正在初始化")
         }
 
         findViewById<Button>(R.id.callButton).setOnClickListener {
@@ -105,10 +107,8 @@ class MainActivity : Activity() {
                 showStatus("请输入被叫 SIP 用户名")
                 return@setOnClickListener
             }
-            runSdkAction {
-                FanvilLinkSdk.startCall(target, type = "video")
-                showStatus("正在呼叫 $target")
-            }
+            FanvilLinkSdk.startCall(target, type = "video")
+            showStatus("正在呼叫 $target")
         }
 
         findViewById<Button>(R.id.monitorButton).setOnClickListener {
@@ -117,21 +117,17 @@ class MainActivity : Activity() {
                 showStatus("请输入监控 SIP 用户名")
                 return@setOnClickListener
             }
-            runSdkAction {
-                FanvilLinkSdk.startMonitor(target)
-                showStatus("正在监控 $target")
-            }
+            FanvilLinkSdk.startMonitor(target)
+            showStatus("正在监控 $target")
         }
 
         findViewById<Button>(R.id.acceptButton).setOnClickListener {
-            runSdkAction { FanvilLinkSdk.acceptCall() }
+            FanvilLinkSdk.acceptCall()
         }
 
         findViewById<Button>(R.id.endButton).setOnClickListener {
-            runSdkAction {
-                FanvilLinkSdk.endCall()
-                showStatus("已结束")
-            }
+            FanvilLinkSdk.endCall()
+            showStatus("已结束")
         }
 
         findViewById<ToggleButton>(R.id.muteButton).setOnCheckedChangeListener { _, checked ->
@@ -143,16 +139,6 @@ class MainActivity : Activity() {
     }
 
     private fun textOf(id: Int): String = findViewById<EditText>(id).text.toString().trim()
-
-    private fun runSdkAction(action: () -> Unit) {
-        Thread {
-            try {
-                action()
-            } catch (error: Throwable) {
-                showStatus("错误: ${error.message ?: error.javaClass.simpleName}")
-            }
-        }.start()
-    }
 
     private fun showStatus(message: String) {
         runOnUiThread { statusText.text = message }
