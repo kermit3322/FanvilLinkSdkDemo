@@ -1,11 +1,12 @@
 package com.fanvil.link.sdk
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.ViewGroup
 import android.widget.Toast
+import com.fanvil.link.sdk.utils.FvlLogger
 import com.fanvil.link.sdk.bridge.SipMqttBridge
 import com.fanvil.link.sdk.call.CallService
 import com.fanvil.link.sdk.call.CallSession
@@ -27,7 +28,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  * 原生工程与 Expo Module 共用同一套实现。
  */
 object FvCloudTalkSDK {
-    private const val TAG = "FvCloudTalkSDK"
+    private val log = FvlLogger.getLogger("FvCloudTalkSDK")
 
     @Volatile
     private var appContext: Context? = null
@@ -73,36 +74,36 @@ object FvCloudTalkSDK {
 
     fun addListener(listener: FvSdkListener) {
         listeners.add(listener)
-        Log.d(TAG, "addListener size=${listeners.size}")
+        log.d("addListener size=${listeners.size}")
     }
 
     fun removeListener(listener: FvSdkListener) {
         listeners.remove(listener)
-        Log.d(TAG, "removeListener size=${listeners.size}")
+        log.d("removeListener size=${listeners.size}")
     }
 
     fun initialize(context: Context, config: FvSdkConfig) {
-        Log.i(
-            TAG,
+        FvlLogger.applyBuildType(
+            (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0,
+        )
+        log.i(
             "initialize userId=${config.userId} agoraId=${config.agoraId} " +
                     "mqttUrl=${config.mqttUrl.trim()} mqttUser=${config.mqttUserName.trim()} " +
-                    "appId=${config.agoraAppId} token=${config.accessToken}",
+                    "appId=${config.agoraAppId}",
         )
+        log.d("initialize token=${config.accessToken}")
         val app = context.applicationContext
         appContext = app
         this.config = config
 
         val mqttHolder = mqtt ?: MqttClientHolder(
             onConnectionChanged = { status, code, message, reconnect ->
-                Log.i(
-                    TAG,
-                    "mqtt connection status=$status code=$code reconnect=$reconnect msg=$message"
-                )
+                log.i("mqtt connection status=$status code=$code reconnect=$reconnect msg=$message")
                 listeners.forEach { it.onMqttConnectionChanged(status, code, message, reconnect) }
                 bridge?.onMqttConnectionChanged(status == "connected")
             },
             onMessage = { topic, payload ->
-                Log.d(TAG, "mqtt message topic=$topic payload=$payload")
+                log.d("mqtt message topic=$topic payload=$payload")
                 listeners.forEach { it.onMqttMessage(topic, payload) }
                 bridge?.onMqttMessage(topic, payload)
             },
@@ -113,13 +114,13 @@ object FvCloudTalkSDK {
         }.also { sip = it }
 
         val rtcEngine = rtc ?: RinoRtcEngine(app) { event, payload ->
-            Log.d(TAG, "rtc event=$event")
+            log.d("rtc event=$event")
             listeners.forEach { it.onRtcEvent(event, payload) }
         }.also { rtc = it }
 
         val topics = defaultSubscribeTopics(config.userId, config.agoraId)
         if (!mqttHolder.isConnected()) {
-            Log.i(TAG, "mqtt connect clientId=${config.userId}")
+            log.i("mqtt connect clientId=${config.userId}")
             mqttHolder.connect(
                 url = config.mqttUrl.trim(),
                 clientId = config.userId,
@@ -127,19 +128,19 @@ object FvCloudTalkSDK {
                 password = config.accessToken.trim(),
             )
         } else {
-            Log.i(TAG, "mqtt already connected, skip connect")
+            log.i("mqtt already connected, skip connect")
         }
-        Log.i(TAG, "mqtt subscribe topics=$topics")
+        log.i("mqtt subscribe topics=$topics")
         mqttHolder.subscribe(topics)
 
         val sipBridge = bridge ?: SipMqttBridge(mqttHolder, sipCore, rtcEngine).also { bridge = it }
         sipBridge.onRtcTokenReady = {
             if (lastCallState == CallState.IncomingEarlyMedia && !mediaJoined) {
-                Log.i(TAG, "rtc token ready, joinMedia for IncomingEarlyMedia")
+                log.i("rtc token ready, joinMedia for IncomingEarlyMedia")
                 try {
                     joinEarlyMedia()
                 } catch (e: Exception) {
-                    Log.e(TAG, "joinMedia after token ready failed", e)
+                    log.e("joinMedia after token ready failed", e)
                 }
             }
         }
@@ -149,20 +150,38 @@ object FvCloudTalkSDK {
             agoraAppId = config.agoraAppId.trim(),
             displayName = config.displayName,
         )
-        Log.i(TAG, "initialize done userId=${config.userId} agoraId=${config.agoraId}")
+        log.i("initialize done userId=${config.userId} agoraId=${config.agoraId}")
     }
 
-    fun isReady(): Boolean = config != null && mqtt?.isConnected() == true
+    fun isReady(): Boolean {
+        val ready = config != null && mqtt?.isConnected() == true
+        log.t("isReady=$ready")
+        return ready
+    }
 
-    fun isCalling(): Boolean = sip?.isCalling() == true || activeCall != null
+    fun isCalling(): Boolean {
+        val calling = sip?.isCalling() == true || activeCall != null
+        log.t("isCalling=$calling")
+        return calling
+    }
 
-    fun isMediaJoined(): Boolean = mediaJoined
+    fun isMediaJoined(): Boolean {
+        log.t("isMediaJoined=$mediaJoined")
+        return mediaJoined
+    }
 
-    fun isMonitorMode(): Boolean = monitorMode
+    fun isMonitorMode(): Boolean {
+        log.t("isMonitorMode=$monitorMode")
+        return monitorMode
+    }
 
-    fun getActiveCall(): CallSession? = activeCall
+    fun getActiveCall(): CallSession? {
+        log.t("getActiveCall callId=${activeCall?.callId}")
+        return activeCall
+    }
 
     fun getRtcView(context: Context): FvRtcVideoView {
+        log.d("getRtcView reuse=${rtcVideoView != null}")
         if (appContext == null) appContext = context.applicationContext
         val existing = rtcVideoView
         if (existing != null) {
@@ -173,22 +192,23 @@ object FvCloudTalkSDK {
     }
 
     fun openDoor(mac: String, whichDoor: Int = 1, doorNoList: List<Int>? = null) {
-        Log.i(TAG, "openDoor mac=$mac whichDoor=$whichDoor doorNoList=$doorNoList")
+        log.i("openDoor mac=$mac whichDoor=$whichDoor doorNoList=$doorNoList")
         if (!ensureInitialized()) return
         val cfg = config ?: return
         val mqttHolder = mqtt ?: return
         if (!mqttHolder.isConnected()) {
-            Log.w(TAG, "openDoor skipped: MQTT is not connected")
+            log.w("openDoor skipped: MQTT is not connected")
             return
         }
         DoorService.openDoor(mqttHolder, cfg.userId, mac, whichDoor, doorNoList)
-        Log.i(TAG, "openDoor published userId=${cfg.userId}")
+        log.i("openDoor published userId=${cfg.userId}")
     }
 
     fun startCall(
         sipUsername: String,
         isVideo: Boolean = true,
     ) {
+        log.i("startCall sipUsername=$sipUsername isVideo=$isVideo")
         startOutgoingCall(sipUsername, isVideo = isVideo, isMonitor = false)
     }
 
@@ -202,42 +222,41 @@ object FvCloudTalkSDK {
             isVideo -> "video"
             else -> "audio"
         }
-        Log.i(TAG, "startCall sipUsername=$sipUsername isVideo=$isVideo isMonitor=$isMonitor")
+        log.i("startCall sipUsername=$sipUsername isVideo=$isVideo isMonitor=$isMonitor")
         if (!ensureInitialized()) return false
         val sipCore = sip ?: return false
         if (sipCore.isCalling()) {
-            Log.w(TAG, "startCall skipped: already calling")
+            log.w("startCall skipped: already calling")
             return false
         }
         val session = CallService.startCall(sipCore, sipUsername, type = type)
         activeCall = session
         mediaJoined = false
         monitorMode = isMonitor
-        Log.i(TAG, "startCall ok callId=${session.callId} monitorMode=$monitorMode")
+        log.i("startCall ok callId=${session.callId} monitorMode=$monitorMode")
         return true
     }
 
-    private fun joinMedia(speakerOn: Boolean = true, isMute: Boolean = false) {
+    private fun joinMedia(speakerOn: Boolean = true) {
         val micEnabled = !monitorMode
-        Log.i(TAG, "joinMedia speakerOn=$speakerOn isMute=$isMute micEnabled=$micEnabled monitorMode=$monitorMode")
-        joinCallMedia(rtcVideoView, speakerOn, micEnabled = micEnabled, isMute = isMute)
+        log.i("joinMedia speakerOn=$speakerOn micEnabled=$micEnabled monitorMode=$monitorMode")
+        joinCallMedia(rtcVideoView, speakerOn, micEnabled = micEnabled)
     }
 
     private fun joinEarlyMedia() {
-        Log.i(TAG, "joinEarlyMedia")
+        log.i("joinEarlyMedia")
         appContext?.let { RinoAudioUtils.setMicrophoneMute(it, true) }
         joinCallMedia(rtcVideoView, false, micEnabled = false)
+        rtc?.setMuteAudio(true)
     }
 
     private fun joinCallMedia(
         videoContainer: ViewGroup? = null,
         speakerOn: Boolean = true,
         micEnabled: Boolean = true,
-        isMute: Boolean = false,
     ) {
-        Log.i(
-            TAG,
-            "joinCallMedia speakerOn=$speakerOn micEnabled=$micEnabled isMute=$isMute " +
+        log.i(
+            "joinCallMedia speakerOn=$speakerOn micEnabled=$micEnabled " +
                     "hasContainer=${videoContainer != null}",
         )
         val sipBridge = bridge
@@ -245,26 +264,25 @@ object FvCloudTalkSDK {
             return
         }
         if (mediaJoined) {
-            Log.i(TAG, "joinCallMedia skipped: already joined")
+            log.i("joinCallMedia skipped: already joined")
             return
         }
         mediaJoined = true
         try {
-            rtc?.setMuteAudio(isMute)
             sipBridge.joinOutgoingCallRtc(videoContainer, speakerOn, micEnabled = micEnabled)
         } catch (e: Exception) {
             mediaJoined = false
-            Log.e(TAG, "joinCallMedia failed", e)
+            log.e("joinCallMedia failed", e)
             return
         }
-        Log.i(TAG, "joinCallMedia done")
+        log.i("joinCallMedia done")
     }
 
     fun startMonitor(
         sipUsername: String,
         timeoutSeconds: Int = 30,
     ) {
-        Log.i(TAG, "startMonitor sipUsername=$sipUsername timeoutSeconds=$timeoutSeconds")
+        log.i("startMonitor sipUsername=$sipUsername timeoutSeconds=$timeoutSeconds")
         if (!ensureInitialized()) return
         setMuted(true)
         if (!startOutgoingCall(sipUsername, isVideo = true, isMonitor = true)) return
@@ -272,6 +290,7 @@ object FvCloudTalkSDK {
     }
 
     private fun startMonitorTimer(timeoutSeconds: Int) {
+        log.d("startMonitorTimer timeoutSeconds=$timeoutSeconds")
         stopMonitorTimer()
         if (timeoutSeconds <= 0) return
         monitorRemainSeconds = timeoutSeconds
@@ -279,29 +298,30 @@ object FvCloudTalkSDK {
     }
 
     private fun stopMonitorTimer() {
+        log.t("stopMonitorTimer")
         mainHandler.removeCallbacks(monitorTick)
     }
 
     fun takeSnapshot(filePath: String? = null, saveToGallery: Boolean = false): Int {
-        Log.i(TAG, "takeSnapshot filePath=$filePath saveToGallery=$saveToGallery")
+        log.i("takeSnapshot filePath=$filePath saveToGallery=$saveToGallery")
         if (!ensureInitialized()) return -1
         val rtcEngine = rtc ?: return -1
         val code = rtcEngine.takeSnapshot(filePath, saveToGallery)
-        Log.i(TAG, "takeSnapshot result=$code")
+        log.i("takeSnapshot result=$code")
         return code
     }
 
     fun clearRtcCache() {
-        Log.i(TAG, "clearRtcCache")
+        log.i("clearRtcCache")
         try {
             rtc?.clearCache()
         } catch (e: Exception) {
-            Log.w(TAG, "clearRtcCache failed", e)
+            log.w("clearRtcCache failed", e)
         }
     }
 
     fun acceptCall() {
-        Log.i(TAG, "acceptCall")
+        log.i("acceptCall")
         if (!ensureInitialized()) return
         val sipCore = sip ?: return
         monitorMode = false
@@ -310,12 +330,12 @@ object FvCloudTalkSDK {
     }
 
     fun rejectCall() {
-        Log.i(TAG, "rejectCall")
+        log.i("rejectCall")
         endCall()
     }
 
     fun endCall() {
-        Log.i(TAG, "endCall activeCallId=${activeCall?.callId} calling=${sip?.isCalling()}")
+        log.i("endCall activeCallId=${activeCall?.callId} calling=${sip?.isCalling()}")
         val sipCore = sip ?: return
         CallService.hangup(sipCore, rtc)
         activeCall = null
@@ -323,50 +343,50 @@ object FvCloudTalkSDK {
         monitorMode = false
         lastCallState = null
         stopMonitorTimer()
-        Log.i(TAG, "endCall done")
+        log.i("endCall done")
     }
 
     fun setMuted(muted: Boolean) {
-        Log.i(TAG, "setMuted muted=$muted")
+        log.i("setMuted muted=$muted")
         appContext?.let { RinoAudioUtils.setMicrophoneMute(it, muted) }
     }
 
     fun setSpeakerOn(enabled: Boolean) {
-        Log.i(TAG, "setSpeakerOn enabled=$enabled")
+        log.i("setSpeakerOn enabled=$enabled")
         val sipCore = sip ?: return
         CallService.setSpeakerOn(sipCore, rtc, enabled)
     }
 
     fun shutdown() {
-        Log.i(TAG, "shutdown begin calling=${sip?.isCalling()} activeCall=${activeCall != null}")
+        log.i("shutdown begin calling=${sip?.isCalling()} activeCall=${activeCall != null}")
         try {
             if (sip?.isCalling() == true || activeCall != null) {
                 endCall()
             }
         } catch (e: Exception) {
-            Log.w(TAG, "shutdown endCall failed", e)
+            log.w("shutdown endCall failed", e)
         }
         try {
             sip?.unregister()
         } catch (e: Exception) {
-            Log.w(TAG, "shutdown unregister failed", e)
+            log.w("shutdown unregister failed", e)
         }
         bridge?.stop()
         bridge = null
         try {
             mqtt?.disconnect()
         } catch (e: Exception) {
-            Log.w(TAG, "shutdown mqtt disconnect failed", e)
+            log.w("shutdown mqtt disconnect failed", e)
         }
         try {
             rtc?.destroy()
         } catch (e: Exception) {
-            Log.w(TAG, "shutdown rtc destroy failed", e)
+            log.w("shutdown rtc destroy failed", e)
         }
         try {
             sip?.destroy()
         } catch (e: Exception) {
-            Log.w(TAG, "shutdown sip destroy failed", e)
+            log.w("shutdown sip destroy failed", e)
         }
         mqtt = null
         sip = null
@@ -379,12 +399,12 @@ object FvCloudTalkSDK {
         lastCallState = null
         config = null
         appContext = null
-        Log.i(TAG, "shutdown done")
+        log.i("shutdown done")
     }
 
     private fun ensureInitialized(): Boolean {
         if (config != null && sip != null) return true
-        Log.w(TAG, "SDK not initialized")
+        log.w("SDK not initialized")
         val ctx = appContext ?: return false
         mainHandler.post {
             Toast.makeText(ctx, "SDK not initialized", Toast.LENGTH_SHORT).show()
@@ -393,7 +413,7 @@ object FvCloudTalkSDK {
     }
 
     private fun dispatchSipEvent(event: String, payload: Map<String, Any?>) {
-        Log.i(TAG, "sip event=$event payload=$payload")
+        log.i("sip event=$event payload=$payload")
         when (event) {
             "onRegistration" -> {
                 val state = payload["state"] as? SipRegistrationState ?: return
@@ -404,6 +424,7 @@ object FvCloudTalkSDK {
 
             "onCallStateChanged" -> {
                 val state = payload["state"] as? CallState ?: return
+                val prevState = lastCallState
                 lastCallState = state
                 if (state == CallState.Incoming) {
                     monitorMode = false
@@ -415,15 +436,17 @@ object FvCloudTalkSDK {
                     try {
                         joinEarlyMedia()
                     } catch (e: Exception) {
-                        Log.e(TAG, "auto joinEarlyMedia failed", e)
+                        log.e("auto joinEarlyMedia failed", e)
                     }
                 }
-                if (state == CallState.Connected
-                ) {
+                if (state == CallState.Connected) {
                     try {
-                        joinMedia(false, isMute = monitorMode)
+                        joinMedia(false)
                     } catch (e: Exception) {
-                        Log.e(TAG, "auto joinMedia failed", e)
+                        log.e("auto joinMedia failed", e)
+                    }
+                    if (prevState == CallState.IncomingEarlyMedia) {
+                        rtc?.setMuteAudio(false)
                     }
                 }
                 if (state == CallState.End || state == CallState.Released || state == CallState.Error) {

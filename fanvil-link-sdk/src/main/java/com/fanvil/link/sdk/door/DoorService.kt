@@ -3,12 +3,15 @@ package com.fanvil.link.sdk.door
 import com.fanvil.link.sdk.mqtt.MqttClientHolder
 import com.fanvil.link.sdk.mqtt.MqttMsgType
 import com.fanvil.link.sdk.mqtt.MqttTopics
+import com.fanvil.link.sdk.utils.FvlLogger
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Calendar
 import java.util.TimeZone
 
 object DoorService {
+
+  private val log = FvlLogger.getLogger("DoorService")
   fun openDoor(
     mqtt: MqttClientHolder,
     userId: String,
@@ -17,6 +20,7 @@ object DoorService {
     doorNoList: List<Int>? = null,
   ) {
     val payload = buildOpenDoorPayload(mac, whichDoor, doorNoList)
+    log.i("openDoor payload=$payload")
     mqtt.publish(MqttTopics.cmdRequest(userId), payload.toString())
   }
 

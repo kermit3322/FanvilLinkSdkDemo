@@ -23,7 +23,7 @@ class SipCore(
   private val emit: (event: String, payload: Map<String, Any?>) -> Unit,
 ) {
   companion object {
-    private const val TAG = "FvSip"
+    private const val TAG = "SipCore"
     private const val EXTRA_MONITOR = "monitor"
     private const val CALL_INFO = "Call-Info"
   }

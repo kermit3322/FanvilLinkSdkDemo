@@ -4,11 +4,11 @@ import android.content.Context
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
+import com.fanvil.link.sdk.utils.FvlLogger
 import com.elvishew.xlog.LogLevel
 import com.elvishew.xlog.XLog
 import com.elvishew.xlog.printer.AndroidPrinter
@@ -32,11 +32,12 @@ class RinoRtcEngine(
   private val emit: (event: RtcEvent, payload: Map<String, Any?>) -> Unit,
 ) : RinoEventListener {
   companion object {
-    private const val TAG = "FvRtc"
     const val FV_DEVICE_REMOTE_ID = 100000004
     var dynamicAudioCodec: Int = 8
     private val xlogInitialized = AtomicBoolean(false)
   }
+
+  private val log = FvlLogger.getLogger("RinoRtcEngine")
 
   private var eventEmitter: RinoIPCEventEmitter? = RinoIPCEventEmitter().also {
     it.addListener(this)
@@ -59,7 +60,7 @@ class RinoRtcEngine(
     if (!RinoIPCSDK.hasInit) {
       ensureXLogInitialized()
       RinoIPCSDK.init(appId, eventEmitter, context)
-      Log.i(TAG, "RinoIPCSDK init done")
+      log.i("RinoIPCSDK init done")
     }
   }
 
@@ -67,10 +68,10 @@ class RinoRtcEngine(
     if (!xlogInitialized.compareAndSet(false, true)) return
     try {
       XLog.init(LogLevel.ALL, AndroidPrinter())
-      Log.i(TAG, "XLog initialized")
+      log.i("XLog initialized")
     } catch (e: Exception) {
       // 宿主已初始化时忽略
-      Log.d(TAG, "XLog init skipped: ${e.message}")
+      log.d("XLog init skipped: ${e.message}")
     }
   }
 
@@ -110,9 +111,9 @@ class RinoRtcEngine(
         try {
           RinoIPCSDK.updateToken(channelName, userId.toInt(), rtcToken)
           rinoRemotePlayer?.setToken(token)
-          Log.i(TAG, "RTC token updated channel=$channelName uid=$userId")
+          log.i("RTC token updated channel=$channelName uid=$userId")
         } catch (e: Exception) {
-          Log.e(TAG, "updateToken", e)
+          log.e("updateToken", e)
         }
       }
     }
@@ -163,7 +164,7 @@ class RinoRtcEngine(
 
   fun joinChannel(localUid: Int, isSpeakerOn: Boolean = true) {
     if (hasJoinChannelJob) {
-      Log.i(TAG, "joinChannel skipped: already joined")
+      log.i("joinChannel skipped: already joined")
       return
     }
     val token = agoraUserTokenVO ?: throw IllegalStateException("RTC token not set")
@@ -171,8 +172,7 @@ class RinoRtcEngine(
     val container = playerContainer ?: throw IllegalStateException("RTC view not ready")
     hasJoinChannelJob = true
     runOnMain {
-      Log.i(
-        TAG,
+      log.i(
         "joinChannel(main) channel=${token.rtcToken?.channelName} localUid=$localUid remoteUid=$remoteUid speaker=$isSpeakerOn size=${container.width}x${container.height} attached=${container.isAttachedToWindow}",
       )
       waitUntilReady(container) {
@@ -188,7 +188,7 @@ class RinoRtcEngine(
       if (started) return true
       if (!view.isAttachedToWindow || view.width <= 0 || view.height <= 0) return false
       started = true
-      Log.i(TAG, "view ready size=${view.width}x${view.height}")
+      log.i("view ready size=${view.width}x${view.height}")
       action()
       return true
     }
@@ -220,7 +220,7 @@ class RinoRtcEngine(
 
   private fun initRinoPlayer(container: ViewGroup, remoteUid: Int) {
     val token = agoraUserTokenVO ?: return
-    Log.i(TAG, "initRinoPlayer remoteUid=$remoteUid size=${container.width}x${container.height}")
+    log.i("initRinoPlayer remoteUid=$remoteUid size=${container.width}x${container.height}")
     val playerContext = container.context ?: context
     rinoRemotePlayer = RinoRemotePlayer(playerContext, remoteUid, false).also { player ->
       player.token = token
@@ -248,7 +248,7 @@ class RinoRtcEngine(
         try {
           RinoIPCSDK.leaveChannel(channelName, userId.toInt())
         } catch (e: Exception) {
-          Log.e(TAG, "leaveChannel error", e)
+          log.e("leaveChannel error", e)
         }
       }
       agoraUserTokenVO = null
@@ -265,12 +265,16 @@ class RinoRtcEngine(
   }
 
   fun setMuteAudio(mute: Boolean) {
+    log.i("setMuteAudio mute=$mute")
     isMuteAudio = mute
     runOnMain { rinoRemotePlayer?.setMuteAudio(mute) }
   }
 
   fun setMicEnabled(enable: Boolean) {
+    log.i("setMicEnabled enable=$enable joined=$hasJoinChannelJob")
     isMicEnabled = enable
+    if (!hasJoinChannelJob) return
+    if (enable) startPushAudio() else stopPushAudio()
   }
 
   fun setEnableSpeakerphone(isOpen: Boolean): Int {
@@ -280,17 +284,18 @@ class RinoRtcEngine(
     return try {
       RinoIPCSDK.setEnableSpeakerphone(isOpen)
     } catch (e: Exception) {
-      Log.e(TAG, "setEnableSpeakerphone", e)
+      log.e("setEnableSpeakerphone", e)
       -1
     }
   }
 
   fun startPushAudio(localUid: Int = agoraUserTokenVO?.userId?.toIntOrNull() ?: 0): Int {
     val channelId = agoraUserTokenVO?.rtcToken?.channelName ?: return -2
+    log.i("startPushAudio localUid=$localUid")
     return try {
       RinoIPCSDK.startPushAudioToChannel(channelId, localUid, dynamicAudioCodec)
     } catch (e: Exception) {
-      Log.e(TAG, "startPushAudio", e)
+      log.e("startPushAudio", e)
       -2
     }
   }
@@ -300,7 +305,7 @@ class RinoRtcEngine(
     return try {
       RinoIPCSDK.stopPushAudioToChannel(channelId, localUid)
     } catch (e: Exception) {
-      Log.e(TAG, "stopPushAudio", e)
+      log.e("stopPushAudio", e)
       -2
     }
   }
@@ -316,7 +321,7 @@ class RinoRtcEngine(
     return try {
       RinoIPCSDK.takeSnapshot(channelId, localUid, remoteUid, path, saveToGallery)
     } catch (e: Exception) {
-      Log.e(TAG, "takeSnapshot", e)
+      log.e("takeSnapshot", e)
       -2
     }
   }
@@ -336,7 +341,9 @@ class RinoRtcEngine(
   }
 
   override fun onEvent(event: RinoIPCEventEmitter.RinoIPCEvent, ctx: Context) {
-    Log.i(TAG, "[event] ${event.eventType} data=${event.data}")
+    if(event.eventType != RinoIPCEventEmitter.RinoIPCEventTypeEnum.onPlaybackAudioFrameBeforeMixing) {
+      log.i("[event] ${event.eventType} data=${event.data}")
+    }
     when (event.eventType) {
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onConnectionStateChanged -> {
         val state = (event.data?.get("state") as? Number)?.toInt() ?: 0

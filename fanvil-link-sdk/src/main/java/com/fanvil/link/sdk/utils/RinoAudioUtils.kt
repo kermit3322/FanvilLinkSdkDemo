@@ -2,11 +2,13 @@ package com.fanvil.link.sdk.utils
 
 import android.content.Context
 import android.media.AudioManager
-import android.util.Log
+import com.fanvil.link.sdk.utils.FvlLogger
 
 object RinoAudioUtils {
+    private val log = FvlLogger.getLogger("RinoAudioUtils")
+
     fun changeToSpeaker(context: Context) {
-        Log.e("[RinoAudioUtils]", "changeToSpeaker")
+        log.i("changeToSpeaker")
         try {
             val audioManager = context
                 .getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -18,7 +20,7 @@ object RinoAudioUtils {
     }
 
     fun changeToEarpiece(context: Context) {
-        Log.e("[RinoAudioUtils]", "changeToEarpiece")
+        log.i("changeToEarpiece")
         try {
             val audioManager = context
                 .getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -34,7 +36,7 @@ object RinoAudioUtils {
     }
 
     fun changeToBluetooth(context: Context) {
-        Log.e("[RinoAudioUtils]", "changeToBluetooth")
+        log.i("changeToBluetooth")
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         audioManager.startBluetoothSco()
@@ -43,12 +45,12 @@ object RinoAudioUtils {
     }
 
     fun changeToHeadset(context: Context) {
-        Log.e("[RinoAudioUtils]", "changeToHeadset")
+        log.i("changeToHeadset")
         changeToEarpiece(context)
     }
 
     fun choiceAudioModel(context: Context, isSpeakerOn: Boolean) {
-        Log.e("[RinoAudioUtils]", "choiceAudioModel isSpeakerOn:$isSpeakerOn")
+        log.i("choiceAudioModel isSpeakerOn:$isSpeakerOn")
         if (isWiredHeadsetOn(context)) {
             changeToHeadset(context)
         } else if (isBluetoothA2dpOn(context)) {
@@ -83,7 +85,7 @@ object RinoAudioUtils {
     }
 
     fun setMicrophoneMute(context: Context, mute: Boolean): Int {
-        Log.e("[RinoAudioUtils]", "setMicrophoneMute mute:$mute")
+        log.i("setMicrophoneMute mute:$mute")
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         audioManager.isMicrophoneMute = mute
         return 1
@@ -91,19 +93,19 @@ object RinoAudioUtils {
 
     fun isMicrophoneMute(context: Context): Boolean {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        Log.e("[RinoAudioUtils]", "isMicrophoneMute isMicrophoneMute:${audioManager.isMicrophoneMute}")
+        log.d("isMicrophoneMute isMicrophoneMute:${audioManager.isMicrophoneMute}")
         return audioManager.isMicrophoneMute
     }
 
     fun setAudioManagerInCommunicationMode(context: Context) {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        Log.e("[RinoAudioUtils]", "Setting audio manager in communication mode")
+        log.i("setAudioManagerInCommunicationMode")
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
     }
 
     fun setAudioManagerInNormalMode(context: Context) {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        Log.e("[RinoAudioUtils]", "Setting audio manager in normal mode")
+        log.i("setAudioManagerInNormalMode")
         audioManager.mode = AudioManager.MODE_NORMAL
     }
 }

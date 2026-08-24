@@ -142,5 +142,19 @@
                 android:textOff="听筒"
                 android:textOn="扬声器" />
         </LinearLayout>
+
+        <EditText
+            android:id="@+id/macInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="设备 MAC"
+            android:text="0c383e61e25f"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/openDoorButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="开门" />
     </LinearLayout>
 </ScrollView>

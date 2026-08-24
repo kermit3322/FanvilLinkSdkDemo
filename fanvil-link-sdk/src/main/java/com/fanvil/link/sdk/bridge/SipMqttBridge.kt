@@ -2,7 +2,6 @@ package com.fanvil.link.sdk.bridge
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.ViewGroup
 import com.fanvil.link.sdk.mqtt.MqttClientHolder
 import com.fanvil.link.sdk.mqtt.MqttTopics
@@ -10,6 +9,7 @@ import com.fanvil.link.sdk.rtc.RinoRtcEngine
 import com.fanvil.link.sdk.rtc.RtcViewRegistry
 import com.fanvil.link.sdk.sip.LoopBackManager
 import com.fanvil.link.sdk.sip.SipCore
+import com.fanvil.link.sdk.utils.FvlLogger
 import org.json.JSONObject
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
@@ -24,9 +24,7 @@ class SipMqttBridge(
   private val sip: SipCore,
   private val rtc: RinoRtcEngine,
 ) {
-  companion object {
-    private const val TAG = "FvBridge"
-  }
+  private val log = FvlLogger.getLogger("SipMqttBridge")
 
   private var agoraId: String = ""
   private var userId: String = ""
@@ -76,7 +74,7 @@ class SipMqttBridge(
         try {
           mqtt.publish(MqttTopics.sipUp(agoraId), bean.toString())
         } catch (e: Exception) {
-          Log.w(TAG, "publish sip/up failed", e)
+          log.w("publish sip/up failed", e)
         }
       }
       LoopBackManager.init(LoopBackManager.LB_LISTEN_PORT)
@@ -126,7 +124,7 @@ class SipMqttBridge(
         // sipType=1 且 to 是自己 → 来电，按 sipBody 视频方向决定是否开预览
         if (sipType == 1 && to == agoraId) {
           val enableEarlyMedia = parseEnableEarlyMedia(sipBody)
-          Log.i(TAG, "incoming from=$from enableEarlyMedia=$enableEarlyMedia")
+          log.i("incoming from=$from enableEarlyMedia=$enableEarlyMedia")
           sip.setAcceptEarlyMedia(enableEarlyMedia)
         }
 
@@ -147,7 +145,7 @@ class SipMqttBridge(
     timeoutMs: Long = 15_000,
     micEnabled: Boolean = true,
   ) {
-    Log.e(TAG,"joinOutgoingCallRtc rtcReady=$rtcReady")
+    log.d("joinOutgoingCallRtc rtcReady=$rtcReady")
     val ready = rtcReady ?: awaitRtcReady(timeoutMs)
     rtc.initIpc(ready.agoraAppId)
     rtc.setToken(
@@ -220,7 +218,7 @@ class SipMqttBridge(
       mqtt.publish(MqttTopics.tokenRequest(userId), body.toString())
     } catch (e: Exception) {
       pendingRtcChannel = ""
-      Log.w(TAG, "token request failed", e)
+      log.w("token request failed", e)
     }
   }
 
@@ -265,7 +263,7 @@ class SipMqttBridge(
       rtcWaiters.clear()
       onRtcTokenReady?.invoke()
     } catch (e: Exception) {
-      Log.w(TAG, "handleRtcTokenAck", e)
+      log.w("handleRtcTokenAck", e)
     }
   }
 

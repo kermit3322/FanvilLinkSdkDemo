@@ -17,6 +17,7 @@ import com.fanvil.link.sdk.call.CallState
 import com.fanvil.link.sdk.listener.FvSdkListener
 import com.fanvil.link.sdk.rtc.RtcEvent
 import com.fanvil.link.sdk.sip.SipRegistrationState
+import com.fanvil.link.sdk.utils.FvlLogger
 
 class MainActivity : Activity() {
     companion object {
@@ -98,6 +99,7 @@ class MainActivity : Activity() {
                     displayName = "Android Demo",
                 ),
             )
+            FvlLogger.setGlobalLevel(FvlLogger.DEBUG)
             showStatus("正在初始化")
         }
 
@@ -135,6 +137,16 @@ class MainActivity : Activity() {
         }
         findViewById<ToggleButton>(R.id.speakerButton).setOnCheckedChangeListener { _, checked ->
             FvCloudTalkSDK.setSpeakerOn(checked)
+        }
+
+        findViewById<Button>(R.id.openDoorButton).setOnClickListener {
+            val mac = textOf(R.id.macInput)
+            if (mac.isBlank()) {
+                showStatus("请输入设备 MAC")
+                return@setOnClickListener
+            }
+            FvCloudTalkSDK.openDoor(mac)
+            showStatus("正在开门 $mac")
         }
     }
 

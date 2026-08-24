@@ -1,6 +1,6 @@
 package com.fanvil.link.sdk.mqtt
 
-import android.util.Log
+import com.fanvil.link.sdk.utils.FvlLogger
 import org.eclipse.paho.mqttv5.client.IMqttMessageListener
 import org.eclipse.paho.mqttv5.client.IMqttToken
 import org.eclipse.paho.mqttv5.client.MqttActionListener
@@ -20,9 +20,10 @@ class MqttClientHolder(
   private val onMessage: (topic: String, payload: String) -> Unit,
 ) {
   companion object {
-    private const val TAG = "FvMqtt"
     const val QOS_UNRELIABLE = 0
   }
+
+  private val log = FvlLogger.getLogger("MqttClientHolder")
 
   @Volatile
   private var client: MqttAsyncClient? = null
@@ -40,6 +41,7 @@ class MqttClientHolder(
     connectionTimeout: Int = 30,
     cleanStart: Boolean = true,
   ) {
+    log.i("connect url=$url clientId=$clientId")
     disconnectInternal()
 
     val options = MqttConnectionOptions().apply {
@@ -63,7 +65,7 @@ class MqttClientHolder(
       }
 
       override fun mqttErrorOccurred(exception: MqttException) {
-        Log.e(TAG, "mqttErrorOccurred", exception)
+        log.e("mqttErrorOccurred", exception)
       }
 
       override fun messageArrived(topic: String?, message: MqttMessage?) {}
@@ -82,7 +84,7 @@ class MqttClientHolder(
 
     mqttClient.connect(options, null, object : MqttActionListener {
       override fun onSuccess(asyncActionToken: IMqttToken?) {
-        Log.i(TAG, "connect success")
+        log.i("connect success")
         onConnectionChanged("connected", null, null, false)
         if (subscribedTopics.isNotEmpty()) {
           subscribe(subscribedTopics.toList())
@@ -90,7 +92,7 @@ class MqttClientHolder(
       }
 
       override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
-        Log.e(TAG, "connect failed", exception)
+        log.e("connect failed", exception ?: Exception("unknown"))
         onConnectionChanged("failed", null, exception?.message, null)
       }
     })
@@ -106,11 +108,11 @@ class MqttClientHolder(
     }
 
     val mqttClient = client ?: run {
-      Log.w(TAG, "subscribe queued (client null) topics=$topics")
+      log.w("subscribe queued (client null) topics=$topics")
       return
     }
     if (!mqttClient.isConnected) {
-      Log.w(TAG, "subscribe queued (not connected) topics=$topics")
+      log.w("subscribe queued (not connected) topics=$topics")
       return
     }
 
@@ -123,9 +125,9 @@ class MqttClientHolder(
         }
       }
       mqttClient.subscribe(subscriptions, null, null, listeners, MqttProperties())
-      Log.i(TAG, "subscribe ok topics=$topics")
+      log.i("subscribe ok topics=$topics")
     } catch (e: Exception) {
-      Log.e(TAG, "subscribe failed", e)
+      log.e("subscribe failed", e)
       throw e
     }
   }
@@ -137,7 +139,7 @@ class MqttClientHolder(
       mqttClient.unsubscribe(topics.toTypedArray())
       subscribedTopics.removeAll(topics.toSet())
     } catch (e: Exception) {
-      Log.e(TAG, "unsubscribe failed", e)
+      log.e("unsubscribe failed", e)
       throw e
     }
   }
@@ -150,9 +152,11 @@ class MqttClientHolder(
       isRetained = retained
     }
     mqttClient.publish(topic, message)
+    log.d("publish topic=$topic qos=$qos")
   }
 
   fun disconnect() {
+    log.i("disconnect")
     disconnectInternal()
     onConnectionChanged("disconnected", null, null, null)
   }

@@ -1,9 +1,9 @@
 package com.fanvil.link.sdk.sip
 
-import android.util.Log
+import com.fanvil.link.sdk.utils.FvlLogger
 
 object LoopBackManager {
-  private const val TAG = "FvLoopBack"
+  private val log = FvlLogger.getLogger("LoopBackManager")
   const val LB_LISTEN_PORT = 18060
 
   @Volatile
@@ -28,7 +28,7 @@ object LoopBackManager {
     nativeInitClass()
     val status = nativeLbInit(listenPort)
     inited = status == 0
-    Log.i(TAG, "nativeLbInit port=$listenPort status=$status")
+    log.i("nativeLbInit port=$listenPort status=$status")
     return inited
   }
 
@@ -62,7 +62,7 @@ object LoopBackManager {
     callId: String?,
     method: Int,
   ) {
-    Log.i(TAG, "onMqttMessageCallback method=$method from=$from to=$to callId=$callId")
+    log.i("onMqttMessageCallback method=$method from=$from to=$to callId=$callId")
     onSipToMqtt?.invoke(
       sipBody.orEmpty(),
       from.orEmpty(),
