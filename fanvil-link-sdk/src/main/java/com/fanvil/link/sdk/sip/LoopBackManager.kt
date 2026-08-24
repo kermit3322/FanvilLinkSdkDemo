@@ -4,7 +4,7 @@ import android.util.Log
 
 object LoopBackManager {
   private const val TAG = "FvLoopBack"
-  const val LB_LISTEN_PORT = 17060
+  const val LB_LISTEN_PORT = 18060
 
   @Volatile
   private var inited = false

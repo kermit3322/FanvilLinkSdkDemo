@@ -358,7 +358,7 @@ class RinoRtcEngine(
         )
       }
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onFirstRemoteVideoFrame -> {
-        emit(RtcEvent.FirstVideoFrame, emptyMap())
+        emit(RtcEvent.FirstVideoFrame, event.data)
       }
       RinoIPCEventEmitter.RinoIPCEventTypeEnum.onRemoteVideoStateChanged -> {
         val state = (event.data?.get("state") as? Number)?.toInt()

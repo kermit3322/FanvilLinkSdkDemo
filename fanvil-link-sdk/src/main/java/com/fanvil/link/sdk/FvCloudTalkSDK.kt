@@ -187,56 +187,57 @@ object FvCloudTalkSDK {
 
     fun startCall(
         sipUsername: String,
-        displayName: String? = null,
-        type: String = "video",
+        isVideo: Boolean = true,
     ) {
-        startOutgoingCall(sipUsername, displayName, type)
+        startOutgoingCall(sipUsername, isVideo = isVideo, isMonitor = false)
     }
 
     private fun startOutgoingCall(
         sipUsername: String,
-        displayName: String?,
-        type: String,
+        isVideo: Boolean,
+        isMonitor: Boolean,
     ): Boolean {
-        Log.i(
-            TAG,
-            "startCall sipUsername=$sipUsername type=$type displayName=$displayName",
-        )
+        val type = when {
+            isMonitor -> "monitor"
+            isVideo -> "video"
+            else -> "audio"
+        }
+        Log.i(TAG, "startCall sipUsername=$sipUsername isVideo=$isVideo isMonitor=$isMonitor")
         if (!ensureInitialized()) return false
         val sipCore = sip ?: return false
         if (sipCore.isCalling()) {
             Log.w(TAG, "startCall skipped: already calling")
             return false
         }
-        val session = CallService.startCall(sipCore, sipUsername, displayName, type)
+        val session = CallService.startCall(sipCore, sipUsername, type = type)
         activeCall = session
         mediaJoined = false
-        monitorMode = type == "monitor"
+        monitorMode = isMonitor
         Log.i(TAG, "startCall ok callId=${session.callId} monitorMode=$monitorMode")
         return true
     }
 
-    private fun joinMedia(speakerOn: Boolean = true) {
+    private fun joinMedia(speakerOn: Boolean = true, isMute: Boolean = false) {
         val micEnabled = !monitorMode
-        Log.i(TAG, "joinMedia speakerOn=$speakerOn micEnabled=$micEnabled monitorMode=$monitorMode")
-        joinCallMedia(rtcVideoView, speakerOn, micEnabled = micEnabled)
+        Log.i(TAG, "joinMedia speakerOn=$speakerOn isMute=$isMute micEnabled=$micEnabled monitorMode=$monitorMode")
+        joinCallMedia(rtcVideoView, speakerOn, micEnabled = micEnabled, isMute = isMute)
     }
 
     private fun joinEarlyMedia() {
         Log.i(TAG, "joinEarlyMedia")
         appContext?.let { RinoAudioUtils.setMicrophoneMute(it, true) }
         joinCallMedia(rtcVideoView, false, micEnabled = false)
-//         rtc?.setMuteAudio(true)
     }
 
     private fun joinCallMedia(
         videoContainer: ViewGroup? = null,
         speakerOn: Boolean = true,
         micEnabled: Boolean = true,
+        isMute: Boolean = false,
     ) {
         Log.i(
             TAG,
-            "joinCallMedia speakerOn=$speakerOn micEnabled=$micEnabled " +
+            "joinCallMedia speakerOn=$speakerOn micEnabled=$micEnabled isMute=$isMute " +
                     "hasContainer=${videoContainer != null}",
         )
         val sipBridge = bridge
@@ -249,6 +250,7 @@ object FvCloudTalkSDK {
         }
         mediaJoined = true
         try {
+            rtc?.setMuteAudio(isMute)
             sipBridge.joinOutgoingCallRtc(videoContainer, speakerOn, micEnabled = micEnabled)
         } catch (e: Exception) {
             mediaJoined = false
@@ -260,13 +262,12 @@ object FvCloudTalkSDK {
 
     fun startMonitor(
         sipUsername: String,
-        displayName: String? = null,
         timeoutSeconds: Int = 30,
     ) {
         Log.i(TAG, "startMonitor sipUsername=$sipUsername timeoutSeconds=$timeoutSeconds")
         if (!ensureInitialized()) return
         setMuted(true)
-        if (!startOutgoingCall(sipUsername, displayName, type = "monitor")) return
+        if (!startOutgoingCall(sipUsername, isVideo = true, isMonitor = true)) return
         startMonitorTimer(timeoutSeconds)
     }
 
@@ -420,7 +421,7 @@ object FvCloudTalkSDK {
                 if (state == CallState.Connected
                 ) {
                     try {
-                        joinMedia(false)
+                        joinMedia(false, isMute = monitorMode)
                     } catch (e: Exception) {
                         Log.e(TAG, "auto joinMedia failed", e)
                     }

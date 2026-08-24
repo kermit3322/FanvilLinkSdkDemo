@@ -95,8 +95,8 @@ class MainActivity : Activity() {
                     accessToken = token,
                     mqttUrl = mqttUrl,
                     mqttUserName = mqttUser,
-                    displayName = "Android Demo"
-                )
+                    displayName = "Android Demo",
+                ),
             )
             showStatus("正在初始化")
         }
@@ -107,7 +107,7 @@ class MainActivity : Activity() {
                 showStatus("请输入被叫 SIP 用户名")
                 return@setOnClickListener
             }
-            FvCloudTalkSDK.startCall(target, type = "video")
+            FvCloudTalkSDK.startCall(target, isVideo = true)
             showStatus("正在呼叫 $target")
         }
 
