@@ -14,7 +14,7 @@
             android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="未初始化"
+            android:text="@string/status_not_initialized"
             android:textSize="18sp" />
 
         <EditText
@@ -22,7 +22,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="1967770215329169410"
-            android:hint="User ID"
+            android:hint="@string/hint_user_id"
             android:inputType="text" />
 
         <EditText
@@ -30,7 +30,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="200000763"
-            android:hint="Agora ID"
+            android:hint="@string/hint_agora_id"
             android:inputType="text" />
 
         <EditText
@@ -38,14 +38,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="c585a46adf8e42c79019db1c177716da"
-            android:hint="Agora App ID"
+            android:hint="@string/hint_agora_app_id"
             android:inputType="text" />
 
         <EditText
             android:id="@+id/accessTokenInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Access Token"
+            android:hint="@string/hint_access_token"
             android:text="aa3c109b67334bd1823814817994105e"
             android:inputType="text" />
 
@@ -53,7 +53,7 @@
             android:id="@+id/mqttUrlInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="MQTT URL，例如 tcp://host:1883"
+            android:hint="@string/hint_mqtt_url"
             android:text="ssl://testfcms.fanvil.com:8883"
             android:inputType="textUri" />
 
@@ -61,7 +61,7 @@
             android:id="@+id/mqttUserInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="MQTT 用户名"
+            android:hint="@string/hint_mqtt_user"
             android:text="APP_1967770215329169410"
             android:inputType="text" />
 
@@ -69,13 +69,13 @@
             android:id="@+id/initButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="初始化 SDK" />
+            android:text="@string/btn_init_sdk" />
 
         <EditText
             android:id="@+id/sipUsernameInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="被叫 SIP 用户名"
+            android:hint="@string/hint_sip_username"
             android:text="100002007"
             android:inputType="text" />
 
@@ -96,28 +96,28 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="呼叫" />
+                android:text="@string/btn_call" />
 
             <Button
                 android:id="@+id/monitorButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="监控" />
+                android:text="@string/btn_monitor" />
 
             <Button
                 android:id="@+id/acceptButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="接听" />
+                android:text="@string/btn_accept" />
 
             <Button
                 android:id="@+id/endButton"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="挂断/停止" />
+                android:text="@string/btn_end" />
         </LinearLayout>
 
         <LinearLayout
@@ -130,8 +130,8 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textOff="麦克风开启"
-                android:textOn="已静音" />
+                android:textOff="@string/mute_off"
+                android:textOn="@string/mute_on" />
 
             <ToggleButton
                 android:id="@+id/speakerButton"
@@ -139,15 +139,15 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:checked="true"
-                android:textOff="听筒"
-                android:textOn="扬声器" />
+                android:textOff="@string/speaker_off"
+                android:textOn="@string/speaker_on" />
         </LinearLayout>
 
         <EditText
             android:id="@+id/macInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="设备 MAC"
+            android:hint="@string/hint_mac"
             android:text="0c383e61e25f"
             android:inputType="text" />
 
@@ -155,6 +155,6 @@
             android:id="@+id/openDoorButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="开门" />
+            android:text="@string/btn_open_door" />
     </LinearLayout>
 </ScrollView>

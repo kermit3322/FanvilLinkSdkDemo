@@ -33,11 +33,11 @@ class MainActivity : Activity() {
             message: String?,
             reconnect: Boolean?
         ) {
-            showStatus("MQTT: $status ${message.orEmpty()}")
+            showStatus(getString(R.string.status_mqtt, status, message.orEmpty()))
         }
 
         override fun onSipRegistration(state: SipRegistrationState, message: String) {
-            showStatus("SIP: $state $message")
+            showStatus(getString(R.string.status_sip, state.toString(), message))
         }
 
         override fun onCallStateChanged(
@@ -46,19 +46,54 @@ class MainActivity : Activity() {
             remoteDisplayName: String?,
             remoteAddress: String?
         ) {
-            if (state == CallState.Incoming) {
-                showStatus("来电: ${remoteDisplayName ?: remoteUsername.orEmpty()}")
-            } else {
-                showStatus("通话状态: $state")
+            when (state) {
+                CallState.Incoming -> // 来电振铃
+                    showStatus(
+                        getString(
+                            R.string.status_incoming,
+                            remoteDisplayName ?: remoteUsername.orEmpty(),
+                        )
+                    )
+                CallState.IncomingEarlyMedia -> // 来电早媒体（预览）
+                    showStatus(getString(R.string.status_early_media, remoteUsername.orEmpty()))
+                CallState.OutgoingInit -> // 去电发起
+                    showStatus(getString(R.string.status_outgoing, remoteUsername.orEmpty()))
+                CallState.Connected -> // 通话已接通
+                    showStatus(getString(R.string.status_connected, remoteUsername.orEmpty()))
+                CallState.End -> // 通话结束中
+                    showStatus(getString(R.string.status_call_end))
+                CallState.Released -> // 通话资源已释放
+                    showStatus(getString(R.string.status_released))
+                CallState.Error -> // 通话失败
+                    showStatus(getString(R.string.status_call_error))
+                CallState.UpdatedByRemote -> // 对端更新媒体（如音视频切换）
+                    showStatus(getString(R.string.status_updated_by_remote))
             }
         }
 
         override fun onRtcEvent(event: RtcEvent, payload: Map<String, Any?>) {
-            Log.e(TAG, "onRtcEvent event=$event,payload=$payload")
+            when (event) {
+                RtcEvent.ConnectionChanged -> // RTC 连接状态变化 payload: state, reason
+                    Log.e(TAG, "RTC连接变化 payload=$payload")
+                RtcEvent.JoinChannel -> // 加入频道成功
+                    Log.e(TAG, "加入频道 payload=$payload")
+                RtcEvent.FirstVideoFrame -> // 首帧视频已渲染
+                    Log.e(TAG, "首帧视频 payload=$payload")
+                RtcEvent.VideoStateChanged -> // 远端视频状态变化 payload: state, reason
+                    Log.e(TAG, "视频状态 payload=$payload")
+                RtcEvent.LeaveChannel -> // 已离开频道
+                    Log.e(TAG, "离开频道")
+                RtcEvent.UserOffline -> // 远端用户离线
+                    Log.e(TAG, "远端离线")
+                RtcEvent.SnapshotTaken -> // 截图完成 payload: result, path
+                    Log.e(TAG, "截图 payload=$payload")
+                RtcEvent.TokenWillExpire -> // Token 即将过期
+                    Log.e(TAG, "Token即将过期 payload=$payload")
+            }
         }
 
         override fun onMonitorCountdown(remainSeconds: Int) {
-            showStatus("监控剩余: ${remainSeconds}s")
+            showStatus(getString(R.string.status_monitor_remain, remainSeconds))
         }
     }
 
@@ -84,7 +119,7 @@ class MainActivity : Activity() {
             val mqttUrl = textOf(R.id.mqttUrlInput)
             val mqttUser = textOf(R.id.mqttUserInput)
             if (listOf(userId, agoraId, appId, token, mqttUrl, mqttUser).any { it.isBlank() }) {
-                showStatus("请填写完整的初始化参数")
+                showStatus(getString(R.string.status_fill_init_params))
                 return@setOnClickListener
             }
             FvCloudTalkSDK.initialize(
@@ -96,31 +131,31 @@ class MainActivity : Activity() {
                     accessToken = token,
                     mqttUrl = mqttUrl,
                     mqttUserName = mqttUser,
-                    displayName = "Android Demo",
+                    displayName = getString(R.string.display_name_demo),
                 ),
             )
             FvlLogger.setGlobalLevel(FvlLogger.DEBUG)
-            showStatus("正在初始化")
+            showStatus(getString(R.string.status_initializing))
         }
 
         findViewById<Button>(R.id.callButton).setOnClickListener {
             val target = textOf(R.id.sipUsernameInput)
             if (target.isBlank()) {
-                showStatus("请输入被叫 SIP 用户名")
+                showStatus(getString(R.string.status_enter_sip_username))
                 return@setOnClickListener
             }
             FvCloudTalkSDK.startCall(target, isVideo = true)
-            showStatus("正在呼叫 $target")
+            showStatus(getString(R.string.status_calling, target))
         }
 
         findViewById<Button>(R.id.monitorButton).setOnClickListener {
             val target = textOf(R.id.sipUsernameInput)
             if (target.isBlank()) {
-                showStatus("请输入监控 SIP 用户名")
+                showStatus(getString(R.string.status_enter_monitor_sip))
                 return@setOnClickListener
             }
             FvCloudTalkSDK.startMonitor(target)
-            showStatus("正在监控 $target")
+            showStatus(getString(R.string.status_monitoring, target))
         }
 
         findViewById<Button>(R.id.acceptButton).setOnClickListener {
@@ -129,7 +164,7 @@ class MainActivity : Activity() {
 
         findViewById<Button>(R.id.endButton).setOnClickListener {
             FvCloudTalkSDK.endCall()
-            showStatus("已结束")
+            showStatus(getString(R.string.status_ended))
         }
 
         findViewById<ToggleButton>(R.id.muteButton).setOnCheckedChangeListener { _, checked ->
@@ -142,11 +177,11 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.openDoorButton).setOnClickListener {
             val mac = textOf(R.id.macInput)
             if (mac.isBlank()) {
-                showStatus("请输入设备 MAC")
+                showStatus(getString(R.string.status_enter_mac))
                 return@setOnClickListener
             }
             FvCloudTalkSDK.openDoor(mac)
-            showStatus("正在开门 $mac")
+            showStatus(getString(R.string.status_opening_door, mac))
         }
     }
 
