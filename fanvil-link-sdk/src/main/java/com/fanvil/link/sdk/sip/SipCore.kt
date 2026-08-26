@@ -233,6 +233,15 @@ class SipCore(
     account.params = clone
   }
 
+  fun delete() {
+    val c = core ?: return
+    Log.i(TAG, "delete accounts=${c.accountList.size}")
+    c.accountList.toList().forEach { c.removeAccount(it) }
+    c.clearAccounts()
+    c.clearAllAuthInfo()
+    lastRegistrationState = null
+  }
+
   fun makeCall(username: String, displayName: String? = "", type: String = "video") {
     Log.i(TAG, "makeCall username=$username displayName=$displayName type=$type")
     val c = requireCore()

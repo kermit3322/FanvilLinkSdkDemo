@@ -205,7 +205,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         FvCloudTalkSDK.removeListener(sdkListener)
-        FvCloudTalkSDK.shutdown()
+        FvCloudTalkSDK.destroy()
         super.onDestroy()
     }
 }

@@ -357,36 +357,51 @@ object FvCloudTalkSDK {
         CallService.setSpeakerOn(sipCore, rtc, enabled)
     }
 
-    fun shutdown() {
-        log.i("shutdown begin calling=${sip?.isCalling()} activeCall=${activeCall != null}")
+
+    fun destroy() {
+        log.i("destroy begin calling=${sip?.isCalling()} activeCall=${activeCall != null}")
+        stopMonitorTimer()
+        mainHandler.removeCallbacksAndMessages(null)
         try {
             if (sip?.isCalling() == true || activeCall != null) {
                 endCall()
             }
         } catch (e: Exception) {
-            log.w("shutdown endCall failed", e)
+            log.w("destroy endCall failed", e)
         }
         try {
-            sip?.unregister()
+            appContext?.let {
+                RinoAudioUtils.setMicrophoneMute(it, false)
+                RinoAudioUtils.setAudioManagerInNormalMode(it)
+            }
         } catch (e: Exception) {
-            log.w("shutdown unregister failed", e)
+            log.w("destroy audio reset failed", e)
         }
-        bridge?.stop()
+        try {
+            sip?.delete()
+        } catch (e: Exception) {
+            log.w("destroy delete failed", e)
+        }
+        try {
+            bridge?.stop()
+        } catch (e: Exception) {
+            log.w("destroy bridge stop failed", e)
+        }
         bridge = null
         try {
             mqtt?.disconnect()
         } catch (e: Exception) {
-            log.w("shutdown mqtt disconnect failed", e)
+            log.w("destroy mqtt disconnect failed", e)
         }
         try {
             rtc?.destroy()
         } catch (e: Exception) {
-            log.w("shutdown rtc destroy failed", e)
+            log.w("destroy rtc destroy failed", e)
         }
         try {
             sip?.destroy()
         } catch (e: Exception) {
-            log.w("shutdown sip destroy failed", e)
+            log.w("destroy sip destroy failed", e)
         }
         mqtt = null
         sip = null
@@ -399,7 +414,8 @@ object FvCloudTalkSDK {
         lastCallState = null
         config = null
         appContext = null
-        log.i("shutdown done")
+        listeners.clear()
+        log.i("destroy done")
     }
 
     private fun ensureInitialized(): Boolean {

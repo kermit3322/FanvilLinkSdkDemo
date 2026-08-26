@@ -337,6 +337,13 @@ class RinoRtcEngine(
     runOnMainBlocking {
       eventEmitter?.removeListener(this)
       eventEmitter = null
+      try {
+        RinoIPCSDK.destroy()
+        log.i("RinoIPCSDK destroy done")
+      } catch (e: Exception) {
+        log.e("RinoIPCSDK destroy failed", e)
+      }
+      agoraAppId = ""
     }
   }
 

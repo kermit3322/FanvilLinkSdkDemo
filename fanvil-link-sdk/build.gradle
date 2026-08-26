@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.fanvil.link'
-version = '0.1.0'
+version = '0.0.1'
 
 android {
     namespace "com.fanvil.link.sdk"
@@ -48,6 +48,10 @@ android {
             path file('src/main/cpp/CMakeLists.txt')
         }
     }
+}
+
+base {
+    archivesName = "fv_cloud_talk-sdk-${project.version}"
 }
 
 dependencies {

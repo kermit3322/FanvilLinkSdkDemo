@@ -12,7 +12,7 @@
 2. `FrameLayout` 里 `addView(FvCloudTalkSDK.getRtcView(this))`
 3. `addListener`
 4. `initialize`，等 MQTT / SIP 回调后再呼叫
-5. `onDestroy`：`removeListener` + `shutdown`
+5. `onDestroy`：`removeListener` + `destroy`
 
 未初始化调用业务 API 会 Toast `SDK not initialized` 并直接返回。
 
@@ -38,7 +38,7 @@
 
 ```kotlin
 fun initialize(context: Context, config: FvSdkConfig)
-fun shutdown()
+fun destroy()
 fun isReady(): Boolean   // 已 initialize 且 MQTT 已连接
 ```
 
@@ -65,6 +65,8 @@ fun isMonitorMode(): Boolean
 fun isMediaJoined(): Boolean
 fun getActiveCall(): CallSession?
 ```
+
+`CallSession`：`callId`、`deviceId`、`startedAt`。
 
 - `startCall`：`isVideo = true` 视频呼叫，`false` 语音呼叫
 - `startMonitor`：监控（关麦、带视频），与 `startCall` 独立；默认 30s 倒计时，到 0 自动挂断；`timeoutSeconds <= 0` 不加倒计时
@@ -161,7 +163,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         FvCloudTalkSDK.removeListener(listener)
-        FvCloudTalkSDK.shutdown()
+        FvCloudTalkSDK.destroy()
         super.onDestroy()
     }
 }
