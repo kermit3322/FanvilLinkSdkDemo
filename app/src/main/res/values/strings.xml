@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">FanvilLinkSdkDemo</string>
+    <string name="app_name">FanvilTalkSdkDemo</string>
     <string name="status_not_initialized">未初始化</string>
     <string name="hint_user_id">User ID</string>
     <string name="hint_agora_id">Agora ID</string>

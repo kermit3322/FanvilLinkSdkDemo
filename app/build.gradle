@@ -3,10 +3,16 @@ plugins {
 }
 
 // true = 依赖源码模块调试；false = 依赖 app/libs 下 AAR（交付形态）
-def useSdkSource = false
+def useSdkSource = true
+
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
 
 android {
-    namespace 'com.example.fanvillinksdkdemo'
+    namespace 'com.example.fanviltalksdkdemo'
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -14,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.fanvillinksdkdemo"
+        applicationId "com.example.fanviltalksdkdemo"
         minSdk 24
         targetSdk 36
         versionCode 1
@@ -23,8 +29,21 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
+    signingConfigs {
         release {
+            storeFile rootProject.file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.release
+        }
+        release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -38,6 +57,7 @@ android {
             pickFirsts += ['bundle.properties']
         }
         jniLibs {
+            useLegacyPackaging = true
             pickFirsts += [
                 'lib/*/libc++_shared.so',
                 'lib/*/libimagepipeline.so',
@@ -45,6 +65,16 @@ android {
                 'lib/*/libnative-imagetranscoder.so',
                 'lib/*/libavcodec.so'
             ]
+        }
+    }
+    packaging {
+        jniLibs {
+            excludes += ['**/zipDir.so', '**/libAMapSDK_MAP_v10_1_500.so']
+        }
+    }
+    defaultConfig {
+        ndk {
+            abiFilters  "armeabi-v7a","arm64-v8a"
         }
     }
 }
@@ -81,6 +111,7 @@ dependencies {
             exclude module: 'rinoReactWebview'
             exclude module: 'rinoReactLottiee'
             exclude module: 'rinoReactFfmpeg'
+            exclude module: 'rinoMatterSdk'
             exclude group: 'com.linecorp.linesdk', module: 'linesdk'
             exclude group: 'com.github.adityaxjha', module: 'Android-ScalableVideoView'
             exclude group: 'com.github.yalantis', module: 'ucrop'

@@ -79,6 +79,7 @@ dependencies {
         exclude module: 'rinoReactWebview'
         exclude module: 'rinoReactLottiee'
         exclude module: 'rinoReactFfmpeg'
+        exclude module: 'rinoMatterSdk'
         exclude group: 'com.linecorp.linesdk', module: 'linesdk'
         exclude group: 'com.github.adityaxjha', module: 'Android-ScalableVideoView'
         exclude group: 'com.github.yalantis', module: 'ucrop'

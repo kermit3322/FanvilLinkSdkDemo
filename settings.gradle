@@ -38,6 +38,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FanvilLinkSdkDemo"
+rootProject.name = "FanvilTalkSdkDemo"
 include ':app'
 include ':fanvil-link-sdk'

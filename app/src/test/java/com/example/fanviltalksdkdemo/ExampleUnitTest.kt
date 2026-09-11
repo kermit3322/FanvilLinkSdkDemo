@@ -1,4 +1,4 @@
-package com.example.fanvillinksdkdemo
+package com.example.fanviltalksdkdemo
 
 import org.junit.Test
 
