@@ -398,6 +398,8 @@ object FvCloudTalkSDK {
     fun setMuted(muted: Boolean) {
         log.i("setMuted muted=$muted")
         appContext?.let { RinoAudioUtils.setMicrophoneMute(it, muted) }
+        val sipCore = sip ?: return
+        CallService.setMuted(sipCore, rtc, muted)
     }
 
     fun setSpeakerOn(enabled: Boolean) {
@@ -518,6 +520,7 @@ object FvCloudTalkSDK {
                     }
                     if (prevState == CallState.IncomingEarlyMedia) {
                         rtc?.setMuteAudio(false)
+                        setMuted(false)
                     }
                 }
                 if (state == CallState.End || state == CallState.Released || state == CallState.Error) {
