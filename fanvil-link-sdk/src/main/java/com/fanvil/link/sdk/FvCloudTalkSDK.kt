@@ -232,6 +232,13 @@ object FvCloudTalkSDK {
         RtcViewRegistry.current = null
     }
 
+    internal fun onRtcViewReattached(view: FvRtcVideoView) {
+        if (rtcVideoView !== view) return
+        if (!view.isAttachedToWindow) return
+        log.i("onRtcViewReattached")
+        rtc?.reattachPlayerContainer(view)
+    }
+
     fun openDoor(mac: String, whichDoor: Int = 1, doorNoList: List<Int>? = null) {
         log.i("openDoor mac=$mac whichDoor=$whichDoor doorNoList=$doorNoList")
         if (!ensureInitialized()) return
@@ -368,7 +375,6 @@ object FvCloudTalkSDK {
         if (!ensureInitialized()) return
         val sipCore = sip ?: return
         monitorMode = false
-        mediaJoined = false
         CallService.accept(sipCore)
     }
 

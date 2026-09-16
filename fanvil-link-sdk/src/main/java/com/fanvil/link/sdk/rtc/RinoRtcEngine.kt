@@ -162,6 +162,30 @@ class RinoRtcEngine(
     playerContainer = container
   }
 
+  fun reattachPlayerContainer(container: ViewGroup) {
+    runOnMain {
+      val token = agoraUserTokenVO
+      val player = rinoRemotePlayer
+      if (!hasJoinChannelJob || token == null || player == null) {
+        log.d(
+          "RTC view reattached skipped joined=$hasJoinChannelJob " +
+            "token=${token != null} player=${player != null}",
+        )
+        return@runOnMain
+      }
+
+      log.i(
+        "RTC view reattached; recreate player channel=${token.rtcToken?.channelName} " +
+          "remoteUid=$remoteUid",
+      )
+      playerContainer = container
+      container.removeAllViews()
+      player.removeAllViews()
+      rinoRemotePlayer = null
+      initRinoPlayer(container, remoteUid)
+    }
+  }
+
   fun joinChannel(localUid: Int, isSpeakerOn: Boolean = true) {
     if (hasJoinChannelJob) {
       log.i("joinChannel skipped: already joined")
