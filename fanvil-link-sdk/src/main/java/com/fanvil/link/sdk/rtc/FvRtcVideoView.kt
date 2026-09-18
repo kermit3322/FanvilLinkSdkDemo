@@ -39,7 +39,6 @@ class FvRtcVideoView @JvmOverloads constructor(
       FvCloudTalkSDK.onRtcViewDetached(this)
     }
   }
-  private var detachedFromWindow = false
 
   init {
     clipChildren = false
@@ -51,10 +50,7 @@ class FvRtcVideoView @JvmOverloads constructor(
     super.onAttachedToWindow()
     removeCallbacks(detachConfirm)
     RtcViewRegistry.current = this
-    if (detachedFromWindow) {
-      detachedFromWindow = false
-      FvCloudTalkSDK.onRtcViewReattached(this)
-    }
+    FvCloudTalkSDK.onRtcViewReattached(this)
   }
 
   override fun requestLayout() {
@@ -67,7 +63,6 @@ class FvRtcVideoView @JvmOverloads constructor(
   }
 
   override fun onDetachedFromWindow() {
-    detachedFromWindow = true
     if (RtcViewRegistry.current === this) {
       RtcViewRegistry.current = null
     }
